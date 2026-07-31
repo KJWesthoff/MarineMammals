@@ -187,6 +187,10 @@ check before committing to a full run).
 
 ## Running on a rented GPU
 
+For a full worked example -- what gets stored where on the pod, where the
+trained checkpoint ends up, how to retrieve it, measured throughput, and the
+gotchas of RunPod's SSH proxy -- see [`docs/runpod_run.md`](docs/runpod_run.md).
+
 The configs in `configs/` are sized to complete on this project's CPU-only
 development machine. `configs/gpu/` holds the same five experiments scaled
 up for a real GPU -- larger batches, more workers, the full dataset, and
