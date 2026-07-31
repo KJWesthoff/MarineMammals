@@ -12,7 +12,15 @@ next" to "significant additional project":
 - ~~**Full AST fine-tuning at scale.**~~ **Done** -- see the results table
   in the README and [`runpod_run.md`](runpod_run.md).
   `configs/gpu/ast_finetune.yaml` on a rented RTX 4090 gives 0.576 accuracy
-  / 0.325 macro-F1, against 0.507 / 0.273 for the linear probe.
+  / 0.358 macro-F1, against 0.507 / 0.308 for the linear probe.
+- **Give `train.py` a fixed macro-F1 denominator.** Its per-epoch
+  `f1_score(..., average="macro")` has no `labels=`, so it averages over the
+  union of true and predicted classes -- a denominator that varies by model
+  (44 to 48 across the five runs) and makes the printed numbers
+  non-comparable between models. Passing `labels=CLASS_IDS`, or the set
+  present in the split, fixes it. Note this changes the value early stopping
+  monitors, so it will slightly alter training trajectories: worth doing, but
+  it invalidates direct comparison against the logs in `results/logs/`.
 - **Close the fine-tune's overfitting gap.** This is now the most valuable
   next experiment, and the results above are the reason. The fine-tune
   early-stops around epoch 9 with train macro-F1 above 0.95 while validation

@@ -281,28 +281,59 @@ live version of this comparison from `results/metrics/`.
 
 | Model | Params | Test accuracy | Test macro-F1 |
 |---|---|---|---|
-| `baseline_cnn` (from scratch) | 402,678 | 0.446 | 0.245 |
-| `resnet18` (ImageNet) | 11,204,214 | 0.485 | 0.250 |
-| `efficientnet_b0` (ImageNet) | 4,076,722 | 0.503 | 0.303 |
-| `ast_linear_probe` (AudioSet, frozen) | 86,230,326 (43,062 trained) | 0.507 | 0.273 |
-| `ast_finetune` (AudioSet, all unfrozen) | 86,230,326 | 0.576 | 0.325 |
+| `baseline_cnn` (from scratch) | 402,678 | 0.447 | 0.293 |
+| `resnet18` (ImageNet) | 11,204,214 | 0.485 | 0.296 |
+| `efficientnet_b0` (ImageNet) | 4,076,722 | 0.504 | **0.357** |
+| `ast_linear_probe` (AudioSet, frozen) | 86,230,326 (43,062 trained) | 0.507 | 0.308 |
+| `ast_finetune` (AudioSet, all unfrozen) | 86,230,326 | **0.576** | **0.358** |
+
+Macro-F1 is averaged over the **40 species present in the test set** (of 54
+total -- 14 have a single source recording and are train-only by
+construction). These are the numbers in `results/metrics/*_eval.json` and in
+notebook 05. Note that `train.py`'s per-epoch printout reports a *lower*
+macro-F1 for the same predictions; see [the caveat
+below](#a-caveat-on-trainpys-macro-f1).
 
 Read macro-F1, not accuracy. With 54 species spanning three orders of
 magnitude in representation, accuracy is largely a measure of how well a
 model does on killer whale and sperm whale; macro-F1 weights every species
-equally and is the harder, more honest number. The two diverge informatively:
-ResNet-18 buys +0.039 accuracy over the from-scratch CNN but only +0.005
-macro-F1 -- ImageNet transfer helping the head classes and barely touching
-the tail -- while EfficientNet-B0 beats it on macro-F1 (0.303 vs 0.250)
-despite being the smaller model.
+equally and is the harder, more honest number.
 
-The two AST rows are the most interesting comparison, and the one notebook 04
-is built around. The **linear probe** trains only a 43k-parameter head on a
-frozen backbone and still matches a fully fine-tuned EfficientNet-B0 -- that
-is AudioSet pretraining transferring to underwater bioacoustics with no
-adaptation at all, for the cost of a single forward pass over the dataset.
-**Full fine-tuning** then adds a further +0.069 accuracy and +0.052 macro-F1,
-paid for with backprop through all 86M parameters.
+The headline result is that **the two metrics disagree about the winner**.
+The fine-tuned AST wins accuracy outright (0.576, a clear +0.072 over the
+next model) -- but on macro-F1 it is in a statistical tie with
+EfficientNet-B0 (0.358 vs 0.357), a model with **1/21 the parameters**. So
+AST's extra capacity is buying performance on the well-represented species,
+not on the long tail, which is the part of the problem that is actually hard.
+On a per-parameter basis EfficientNet-B0 is the standout model here, and it
+also beats ResNet-18 on macro-F1 by a wide margin (0.357 vs 0.296) despite
+being a third the size.
+
+For the AST pair that notebook 04 is built around: the **linear probe**
+trains only a 43k-parameter head on a frozen backbone and already reaches
+0.507 accuracy -- AudioSet pretraining transferring to underwater
+bioacoustics with no adaptation at all, for the cost of a single forward pass
+over the dataset. **Full fine-tuning** then adds +0.069 accuracy and +0.050
+macro-F1, paid for with backprop through all 86M parameters.
+
+### A caveat on `train.py`'s macro-F1
+
+The macro-F1 that `train.py` prints per epoch is computed with
+`f1_score(..., average="macro")` and no explicit `labels=`, so scikit-learn
+averages over the *union of true and predicted* classes. Any species the
+model predicts but which never appears in the test set enters the average as
+a zero.
+
+That denominator therefore **varies by model** -- 44 classes for the AST
+fine-tune, 48 for the baseline CNN -- which makes those printed numbers not
+directly comparable across models, and systematically harsher on models that
+make more varied predictions. It is why `train.py` reports 0.326 for the AST
+fine-tune where `evaluate.py` reports 0.358 on identical predictions.
+
+Use the `evaluate.py` / `results/metrics/` numbers (fixed 40-class
+denominator) for any comparison. The training-time value is still perfectly
+serviceable for its actual job -- early stopping and best-checkpoint
+selection within a single run -- since the denominator is stable there.
 
 None of these are tuned results. The fine-tune early-stops after ~9 epochs
 with train macro-F1 above 0.95 while validation plateaus near 0.35: 86M
