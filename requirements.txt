@@ -1,0 +1,40 @@
+# Core DL stack (CPU builds -- see README for why: Quadro P520 is Pascal/sm_61,
+# unsupported by current PyTorch CUDA wheels, so this project targets CPU).
+# Install with: pip install --index-url https://download.pytorch.org/whl/cpu torch torchaudio
+# then: pip install --index-url https://download.pytorch.org/whl/cpu torchvision
+torch
+torchaudio
+torchvision
+
+# Pretrained model zoo / transformer backbones
+transformers>=4.40
+timm
+
+# Data / science
+numpy
+scipy
+pandas
+scikit-learn
+
+# Dataset download (Watkins Marine Mammal Sound Database, from Hugging Face)
+datasets
+huggingface_hub
+pyarrow
+
+# Audio I/O
+soundfile
+
+# Viz
+matplotlib
+seaborn
+
+# Utilities
+tqdm
+pyyaml
+tensorboard
+
+# Notebooks
+jupyterlab
+ipykernel
+
+# See requirements-lock.txt for a fully pinned, reproducible environment.

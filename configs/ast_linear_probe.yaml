@@ -1,0 +1,18 @@
+# Fast path: freeze the pretrained AST backbone, train only the linear
+# head on cached embeddings. Runs in seconds-to-minutes on CPU.
+run_name: ast_linear_probe
+model: ast
+model_kwargs:
+  freeze_backbone: true
+batch_size: 16          # only affects embedding-extraction batching, not training
+epochs: 200              # cheap: training the head is a full-batch GD step per "epoch"
+lr: 0.01
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: false     # embeddings are cached, so inputs must be deterministic
+spec_augment: false
+noise_augment_p: 0.0
+class_weighted_loss: true
+seed: 42
+patience: 20
+num_workers: 2

@@ -1,0 +1,20 @@
+# Full fine-tuning of AST's 86M parameters. Slow on CPU -- this config
+# defaults to a small subset and few epochs so it's runnable as a demo;
+# scale subset_frac/epochs up if you have real compute (see README).
+run_name: ast_finetune
+model: ast
+model_kwargs:
+  freeze_backbone: false
+batch_size: 2
+epochs: 3
+subset_frac: 0.25
+lr: 0.00001
+weight_decay: 0.00001
+optimizer: adamw
+train_augment: true
+spec_augment: false
+noise_augment_p: 0.2
+class_weighted_loss: true
+seed: 42
+patience: 3
+num_workers: 2

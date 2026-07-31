@@ -1,0 +1,15 @@
+run_name: baseline_cnn
+model: baseline_cnn
+model_kwargs: {}
+batch_size: 32
+epochs: 40
+lr: 0.001
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: true
+spec_augment: true
+noise_augment_p: 0.3
+class_weighted_loss: true
+seed: 42
+patience: 10
+num_workers: 2

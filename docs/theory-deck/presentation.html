@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passive Sonar Signal Analysis: Theory</title>
+
+  <!-- Reveal.js core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section id="title" class="section-divider" data-state="is-section-divider">
+        <svg width="220" height="90" viewBox="0 0 220 90" style="margin-bottom: 10px;">
+          <circle cx="110" cy="45" r="8" fill="#2dd4bf"/>
+          <circle cx="110" cy="45" r="22" fill="none" stroke="#2dd4bf" stroke-width="1.5" opacity="0.55"/>
+          <circle cx="110" cy="45" r="38" fill="none" stroke="#2dd4bf" stroke-width="1.5" opacity="0.32"/>
+          <circle cx="110" cy="45" r="54" fill="none" stroke="#2dd4bf" stroke-width="1.5" opacity="0.16"/>
+        </svg>
+        <div class="divider-index">Watkins Marine Mammal Sound Database</div>
+        <h1>Passive Sonar Signal<br>Analysis &amp; Classification</h1>
+        <p>The theory behind the exercises &mdash; from raw waveform to species classifier</p>
+        <div style="margin-top: 28px; display: flex; gap: 10px;">
+          <span class="pill">STFT / LOFAR</span>
+          <span class="pill">DEMON</span>
+          <span class="pill">Matched Filter</span>
+          <span class="pill amber">CNN / Transformer</span>
+        </div>
+      </section>
+
+      <section id="divider-1" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 1 &middot; Notebook 00</div>
+        <h1>The Targets</h1>
+        <p>What we're listening for, and why the split matters</p>
+      </section>
+
+      <section id="slide-3">
+        <h2>Two Kinds of Acoustic Targets</h2>
+        <div class="content">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1;">
+            <div class="panel" style="display: flex; flex-direction: column;">
+              <div class="panel-label">Tonal call &mdash; e.g. baleen whale moan</div>
+              <svg viewBox="0 0 400 110" style="width: 100%; flex: 1;">
+                <path d="M0,55 Q25,10 50,55 T100,55 T150,55 T200,55 T250,55 T300,55 T350,55 T400,55"
+                      fill="none" stroke="#2dd4bf" stroke-width="2.5"/>
+              </svg>
+              <p class="text-lg" style="margin-top: 6px;">Sustained, narrowband, low-frequency &mdash; a stable tone held over seconds.</p>
+            </div>
+            <div class="panel" style="display: flex; flex-direction: column;">
+              <div class="panel-label">Biosonar clicks &mdash; e.g. sperm whale / dolphin</div>
+              <svg viewBox="0 0 400 110" style="width: 100%; flex: 1;">
+                <line x1="0" y1="90" x2="400" y2="90" stroke="#1c3644" stroke-width="1"/>
+                <g stroke="#f4a261" stroke-width="3">
+                  <line x1="20" y1="90" x2="20" y2="15"/>
+                  <line x1="70" y1="90" x2="70" y2="30"/>
+                  <line x1="120" y1="90" x2="120" y2="15"/>
+                  <line x1="170" y1="90" x2="170" y2="30"/>
+                  <line x1="220" y1="90" x2="220" y2="15"/>
+                  <line x1="270" y1="90" x2="270" y2="30"/>
+                  <line x1="320" y1="90" x2="320" y2="15"/>
+                  <line x1="370" y1="90" x2="370" y2="30"/>
+                </g>
+              </svg>
+              <p class="text-lg" style="margin-top: 6px;">Short, broadband, rhythmic pulses &mdash; literal biological sonar, used to hunt and navigate.</p>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px;">
+            <div class="stat-tile"><div class="stat-number">54</div><div class="stat-label">Species</div></div>
+            <div class="stat-tile"><div class="stat-number">15,248</div><div class="stat-label">Clips</div></div>
+            <div class="stat-tile"><div class="stat-number">1934&ndash;2001</div><div class="stat-label">Recording span</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-4" style="display: flex; flex-direction: column; height: 100%;">
+        <h2>A Long Tail Spanning Three Orders of Magnitude</h2>
+        <div style="flex: 1; display: grid; grid-template-rows: 1fr 3fr; gap: 18px; min-height: 0; min-width: 0; padding-top: 22px;">
+          <div class="panel" style="display: flex; align-items: center; gap: 20px;">
+            <span class="pill amber">2,647&times; more clips</span>
+            <p class="text-lg" style="margin: 0;">Killer whale (most-recorded) vs. harbour seal (single clip) &mdash; a genuine property of a 70-year opportunistic archive, not a preprocessing artifact.</p>
+          </div>
+          <div style="position: relative; min-height: 0; min-width: 0;">
+            <canvas data-chart="bar">
+            <!--
+            {
+              "data": {
+                "labels": ["KillerWhale", "SpermWhale", "HumpbackWhale", "Walrus", "BottlenoseDolphin", "GrayWhale", "LeopardSeal", "HarbourSeal"],
+                "datasets": [{
+                  "label": "Clips (log scale)",
+                  "data": [2647, 1379, 604, 273, 183, 36, 15, 1],
+                  "backgroundColor": ["#2dd4bf", "#2dd4bf", "#2dd4bf", "#2dd4bf", "#2dd4bf", "#7a97a3", "#7a97a3", "#f43f5e"]
+                }]
+              },
+              "options": {
+                "maintainAspectRatio": false,
+                "plugins": { "legend": { "display": false } },
+                "scales": {
+                  "y": { "type": "logarithmic", "title": { "display": true, "text": "clips (log scale)" } }
+                }
+              }
+            }
+            -->
+            </canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-5">
+        <h2>Why Split by Recording, Not by Clip</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom: 4px;">Clips cut from the <strong>same original tape</strong> share a noise floor, a distance, an individual animal. A model can "recognize the recording" instead of the species.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; flex: 1; margin-top: 10px;">
+
+            <div class="panel">
+              <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 14px;">
+                <span class="panel-label" style="margin:0;">clip_random</span>
+                <span class="pill rose">Leaky</span>
+              </div>
+              <div style="display:flex; gap:16px;">
+                <div style="flex:1;">
+                  <div class="fig-caption" style="margin:0 0 6px 0;">TRAIN</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:5px; background:#060f18; border:1px dashed #1c3644; border-radius:6px; padding:8px;">
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                  </div>
+                </div>
+                <div style="flex:1;">
+                  <div class="fig-caption" style="margin:0 0 6px 0;">TEST</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:5px; background:#060f18; border:1px dashed #1c3644; border-radius:6px; padding:8px;">
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-lg" style="margin-top:14px; margin-bottom:0;">Both tapes (teal / amber) appear on <strong>both</strong> sides &mdash; test clips can be near-duplicates of training clips.</p>
+            </div>
+
+            <div class="panel">
+              <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 14px;">
+                <span class="panel-label" style="margin:0;">tape_grouped</span>
+                <span class="pill">Honest</span>
+              </div>
+              <div style="display:flex; gap:16px;">
+                <div style="flex:1;">
+                  <div class="fig-caption" style="margin:0 0 6px 0;">TRAIN</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:5px; background:#060f18; border:1px dashed #1c3644; border-radius:6px; padding:8px;">
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#2dd4bf;border-radius:3px;"></div>
+                  </div>
+                </div>
+                <div style="flex:1;">
+                  <div class="fig-caption" style="margin:0 0 6px 0;">TEST</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:5px; background:#060f18; border:1px dashed #1c3644; border-radius:6px; padding:8px;">
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                    <div style="width:14px;height:14px;background:#f4a261;border-radius:3px;"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-lg" style="margin-top:14px; margin-bottom:0;">Each tape's clips stay on <strong>one</strong> side &mdash; test performance reflects generalization to a new recording.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="divider-2" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 2 &middot; Notebook 01</div>
+        <h1>Waveform &rarr; Spectrogram</h1>
+        <p>Turning 1D pressure into a 2D image a model can see</p>
+      </section>
+
+      <section id="slide-7">
+        <h2>The Short-Time Fourier Transform</h2>
+        <div class="content" style="justify-content: center;">
+          <div style="display: flex; align-items: stretch; gap: 14px;">
+
+            <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">1. Waveform</div>
+              <svg viewBox="0 0 200 90" style="width:100%; flex:1;">
+                <path d="M0,45 C10,10 20,80 30,45 C40,15 50,70 60,45 C70,20 80,60 90,45 C100,25 110,65 120,45 C130,18 140,72 150,45 C160,22 170,62 180,45 C190,30 195,50 200,45"
+                      fill="none" stroke="#2dd4bf" stroke-width="2"/>
+              </svg>
+              <p class="fig-caption">pressure vs. time</p>
+            </div>
+
+            <div style="align-self: center; color: var(--muted-color);"><i class="fa-solid fa-arrow-right fa-lg"></i></div>
+
+            <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">2. Slide a window</div>
+              <svg viewBox="0 0 200 90" style="width:100%; flex:1;">
+                <path d="M0,45 C10,10 20,80 30,45 C40,15 50,70 60,45 C70,20 80,60 90,45 C100,25 110,65 120,45 C130,18 140,72 150,45 C160,22 170,62 180,45 C190,30 195,50 200,45"
+                      fill="none" stroke="#274753" stroke-width="2"/>
+                <rect x="70" y="6" width="40" height="78" fill="#f4a261" opacity="0.18" stroke="#f4a261" stroke-width="1.5"/>
+                <path d="M70,45 C77,20 84,66 91,45 C98,26 104,60 110,45" fill="none" stroke="#f4a261" stroke-width="2.5"/>
+              </svg>
+              <p class="fig-caption">n_fft samples, hop apart</p>
+            </div>
+
+            <div style="align-self: center; color: var(--muted-color);"><i class="fa-solid fa-arrow-right fa-lg"></i></div>
+
+            <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">3. FFT each window</div>
+              <svg viewBox="0 0 200 90" style="width:100%; flex:1;">
+                <g fill="#f4a261">
+                  <rect x="10" y="55" width="14" height="30"/>
+                  <rect x="34" y="30" width="14" height="55"/>
+                  <rect x="58" y="10" width="14" height="75"/>
+                  <rect x="82" y="45" width="14" height="40"/>
+                  <rect x="106" y="60" width="14" height="25"/>
+                  <rect x="130" y="70" width="14" height="15"/>
+                  <rect x="154" y="75" width="14" height="10"/>
+                  <rect x="178" y="78" width="14" height="7"/>
+                </g>
+              </svg>
+              <p class="fig-caption">magnitude per frequency bin</p>
+            </div>
+
+            <div style="align-self: center; color: var(--muted-color);"><i class="fa-solid fa-arrow-right fa-lg"></i></div>
+
+            <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">4. Stack &rarr; spectrogram</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden; position:relative;">
+                <img src="assets/hero_spectrogram.png" alt="real log-mel spectrogram of a humpback whale call" style="width:100%; height:100%; object-fit:cover; display:block;">
+                <span style="position:absolute; left:6px; top:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; writing-mode:vertical-rl;">freq</span>
+              </div>
+              <p class="fig-caption">real clip &middot; time &rarr;, color = energy</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-8">
+        <h2>Window Length: a Real Trade-off, Not a Knob to Max</h2>
+        <div class="content">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; flex: 1;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">10ms window / 5ms hop</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden;">
+                <img src="assets/window_fine_time.png" alt="spectrogram with a 10ms window: fine time, coarse frequency resolution" style="width:100%; height:100%; object-fit:cover; display:block;">
+              </div>
+              <p class="text-lg" style="margin-top:10px;"><strong>Fine time</strong>, coarse frequency &mdash; catches fast clicks, blurs tonal pitch.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">25ms window / 10ms hop</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden;">
+                <img src="assets/window_balanced.png" alt="spectrogram with a 25ms window: balanced time/frequency resolution" style="width:100%; height:100%; object-fit:cover; display:block;">
+              </div>
+              <p class="text-lg" style="margin-top:10px;"><strong>Balanced</strong> &mdash; the speech-processing default this project starts from.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">64ms window / 32ms hop</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden;">
+                <img src="assets/window_fine_freq.png" alt="spectrogram with a 64ms window: fine frequency, coarse time resolution" style="width:100%; height:100%; object-fit:cover; display:block;">
+              </div>
+              <p class="text-lg" style="margin-top:10px;"><strong>Fine frequency</strong>, coarse time &mdash; precise tonal pitch, blurs transients.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-9">
+        <h2>Mel Scale vs. Linear Frequency (LOFARgram)</h2>
+        <div class="content">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; flex: 1;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Mel-scaled &mdash; what the CNNs/AST train on</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden; position:relative;">
+                <img src="assets/mel_spectrogram.png" alt="real mel-scaled spectrogram of a humpback whale call" style="width:100%; height:100%; object-fit:cover; display:block;">
+                <span style="position:absolute; left:8px; bottom:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">low freq: spread out</span>
+                <span style="position:absolute; left:8px; top:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">high: compressed</span>
+              </div>
+              <p class="text-lg" style="margin-top:8px;">Harmonics <strong>warp and bunch together</strong> at higher pitch &mdash; a good prior for speech, debatable for physical tonals.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">Linear frequency &mdash; LOFARgram, zoomed to 0&ndash;4kHz</div>
+              <div style="flex:1; border-radius:4px; overflow:hidden; position:relative;">
+                <img src="assets/lofar_spectrogram.png" alt="real linear-frequency LOFARgram of the same humpback whale call" style="width:100%; height:100%; object-fit:cover; display:block;">
+                <span style="position:absolute; left:8px; top:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">evenly spaced, every recording</span>
+              </div>
+              <p class="text-lg" style="margin-top:8px;">Tonal harmonics stay at a <strong>fixed row</strong> &mdash; easy to track by eye or algorithm, the classical starting point for passive-sonar target classification.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-9b">
+        <h2>So Why Train Models on Mel, Not LOFAR?</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:16px;">Three practical reasons &mdash; not because mel is theoretically better for tracking tonal harmonics.</p>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
+            <div class="panel">
+              <i class="fa-solid fa-diagram-project" style="color:var(--primary-color); font-size:16pt;"></i>
+              <p class="text-lg" style="margin:10px 0 0 0;"><strong>Transfer-learning fit</strong> &mdash; ResNet/EfficientNet expect ImageNet-like input; AST was pretrained on AudioSet's own log-mel features. Matching that cuts the domain shift.</p>
+            </div>
+            <div class="panel">
+              <i class="fa-solid fa-compress" style="color:var(--primary-color); font-size:16pt;"></i>
+              <p class="text-lg" style="margin:10px 0 0 0;"><strong>Compact input</strong> &mdash; 64 mel bins vs. 500+ linear FFT bins across the same 8kHz. Keeps the CNN input small and tractable.</p>
+            </div>
+            <div class="panel">
+              <i class="fa-solid fa-chart-line" style="color:var(--primary-color); font-size:16pt;"></i>
+              <p class="text-lg" style="margin:10px 0 0 0;"><strong>Dynamic range</strong> &mdash; log compression tames huge loudness swings into something closer to Gaussian, which trains and normalizes better.</p>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:20px; border-color: var(--secondary-color); display:flex; align-items:center; gap:20px;">
+            <span class="pill amber">open question</span>
+            <p class="text-lg" style="margin:0;">Mel is a <strong>speech-processing convention</strong>, not a proven-optimal choice here &mdash; it's what warps tonal harmonics off a fixed row on the previous slide. Does mel vs. linear actually move classifier accuracy? Nobody's tested it yet in this project (<span class="mono">docs/next_steps.md</span>).</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="divider-3" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 3 &middot; Notebook 01</div>
+        <h1>Classical Passive-Sonar<br>Techniques</h1>
+        <p>DEMON &amp; matched filtering, applied to biosonar</p>
+      </section>
+
+      <section id="slide-11">
+        <h2>DEMON: Reading a Click-Repetition Rate</h2>
+        <div class="content" style="justify-content: flex-start;">
+          <p class="text-lg" style="margin-bottom: 14px;"><span class="mono" style="color:var(--secondary-color);">DE</span>modulation of envelope <span class="mono" style="color:var(--secondary-color);">O</span>n <span class="mono" style="color:var(--secondary-color);">N</span>oise &mdash; originally built to read a ship's propeller shaft rate off cavitation noise; here it reads a click train's own rhythm. Click through the five stages:</p>
+          <div style="display:flex; align-items:stretch; gap:10px;">
+
+            <div class="panel fragment fade-in" data-fragment-index="0" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">1. Click train</div>
+              <svg viewBox="0 0 160 80" style="width:100%; flex:1;">
+                <line x1="0" y1="65" x2="160" y2="65" stroke="#1c3644"/>
+                <g stroke="#7a97a3" stroke-width="2.5">
+                  <line x1="15" y1="65" x2="15" y2="10"/>
+                  <line x1="45" y1="65" x2="45" y2="20"/>
+                  <line x1="75" y1="65" x2="75" y2="10"/>
+                  <line x1="105" y1="65" x2="105" y2="20"/>
+                  <line x1="135" y1="65" x2="135" y2="10"/>
+                </g>
+              </svg>
+            </div>
+
+            <div class="fragment fade-in" data-fragment-index="1" style="align-self:center; color:var(--muted-color);"><i class="fa-solid fa-arrow-right"></i></div>
+
+            <div class="panel fragment fade-in" data-fragment-index="1" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">2. High-pass</div>
+              <svg viewBox="0 0 160 80" style="width:100%; flex:1;">
+                <line x1="0" y1="65" x2="160" y2="65" stroke="#1c3644"/>
+                <g stroke="#2dd4bf" stroke-width="2.5">
+                  <line x1="15" y1="65" x2="15" y2="14"/>
+                  <line x1="45" y1="65" x2="45" y2="26"/>
+                  <line x1="75" y1="65" x2="75" y2="14"/>
+                  <line x1="105" y1="65" x2="105" y2="26"/>
+                  <line x1="135" y1="65" x2="135" y2="14"/>
+                </g>
+              </svg>
+            </div>
+
+            <div class="fragment fade-in" data-fragment-index="2" style="align-self:center; color:var(--muted-color);"><i class="fa-solid fa-arrow-right"></i></div>
+
+            <div class="panel fragment fade-in" data-fragment-index="2" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">3. Rectify</div>
+              <svg viewBox="0 0 160 80" style="width:100%; flex:1;">
+                <path d="M0,65 L10,65 L15,14 L20,65 L40,65 L45,26 L50,65 L70,65 L75,14 L80,65 L100,65 L105,26 L110,65 L130,65 L135,14 L140,65 L160,65"
+                      fill="none" stroke="#f4a261" stroke-width="2.5"/>
+              </svg>
+            </div>
+
+            <div class="fragment fade-in" data-fragment-index="3" style="align-self:center; color:var(--muted-color);"><i class="fa-solid fa-arrow-right"></i></div>
+
+            <div class="panel fragment fade-in" data-fragment-index="3" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-label">4. Low-pass envelope</div>
+              <svg viewBox="0 0 160 80" style="width:100%; flex:1;">
+                <path d="M0,60 Q15,10 30,55 Q45,20 60,55 Q75,10 90,55 Q105,22 120,55 Q135,10 150,55 Q158,40 160,50"
+                      fill="none" stroke="#f4a261" stroke-width="2.5"/>
+              </svg>
+            </div>
+
+            <div class="fragment fade-in" data-fragment-index="4" style="align-self:center; color:var(--muted-color);"><i class="fa-solid fa-arrow-right"></i></div>
+
+            <div class="panel fragment fade-in" data-fragment-index="4" style="flex:1; display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">5. FFT the envelope</div>
+              <svg viewBox="0 0 160 80" style="width:100%; flex:1;">
+                <line x1="0" y1="70" x2="160" y2="70" stroke="#1c3644"/>
+                <path d="M0,70 L60,70 L70,66 L78,10 L86,66 L100,70 L160,70" fill="none" stroke="#2dd4bf" stroke-width="2.5"/>
+                <text x="42" y="8" fill="#2dd4bf" font-size="7" font-family="monospace">peak = click rate</text>
+              </svg>
+            </div>
+
+          </div>
+
+          <div class="panel" style="margin-top:16px; position:relative; min-height:130px; padding:0; border-color: var(--secondary-color);">
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="0" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Click train.</strong>&nbsp;A click train is broadband pulses fired at a steady rate. In the raw waveform, each click's own high-frequency content can hide the fact that the <em>pulses themselves</em> repeat periodically &mdash; that periodicity is what DEMON is built to expose.</p>
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="1" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>High-pass.</strong>&nbsp;Filtering out low frequencies strips away clutter &mdash; flow noise, hull vibration, distant shipping &mdash; leaving mostly the broadband click energy. It's the same first step used to isolate propeller cavitation from a ship's own machinery tones.</p>
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="2" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Rectify.</strong>&nbsp;Full-wave rectification (absolute value) folds the negative half of the waveform onto the positive half. This is the actual <em>demodulation</em> step &mdash; it converts fast carrier oscillation into a slower amplitude pattern: a series of positive bumps.</p>
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="3" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Low-pass envelope.</strong>&nbsp;Low-pass filtering the rectified signal smooths away leftover high-frequency ripple, leaving a clean envelope that rises and falls with the click train's own rhythm &mdash; a hump for every click.</p>
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="4" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>FFT the envelope.</strong>&nbsp;FFT of <em>this envelope</em> &mdash; not the original waveform &mdash; produces the DEMON spectrum. A sharp, isolated peak reads the pulse-repetition rate directly in Hz: for an echolocating animal, literally how many clicks per second, a number no ordinary spectrogram shows as a single value.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-12">
+        <h2>Matched Filtering: Detecting a Known Shape</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom: 10px;">A bank of three <em>different</em> reference templates (click, tonal wavelet, chirp) slides across a real hydrophone waveform. The correlation dot rides the response curve live, and the bank flashes <span class="mono" style="color:var(--secondary-color)">amber</span> exactly where a shape lines up.</p>
+
+          <div id="mf-anim-wrap" style="position:relative;">
+            <div class="panel" style="height:166px; flex:none; display:flex; flex-direction:column;">
+              <div class="panel-label">Real clip (sperm whale, 61027002.wav), template bank searching across it</div>
+              <div style="position:relative; flex:1;">
+                <svg viewBox="0 0 500 90" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+                  <path d="M6.0,40.8 L8.2,45.0 L10.5,44.7 L12.7,44.3 L14.9,42.3 L17.1,43.0 L19.4,44.8 L21.6,37.7 L23.8,45.0 L26.1,45.0 L28.3,45.1 L30.5,45.1 L32.7,44.8 L35.0,45.0 L37.2,45.0 L39.4,45.1 L41.7,45.0 L43.9,45.1 L46.1,45.0 L48.3,40.4 L50.6,34.5 L52.8,45.0 L55.0,44.5 L57.3,44.9 L59.5,45.1 L61.7,45.0 L63.9,45.0 L66.2,44.8 L68.4,44.5 L70.6,44.6 L72.8,44.6 L75.1,44.9 L77.3,39.1 L79.5,44.9 L81.8,45.0 L84.0,44.9 L86.2,44.9 L88.4,41.2 L90.7,40.8 L92.9,45.1 L95.1,45.1 L97.4,45.0 L99.6,45.0 L101.8,34.7 L104.0,45.0 L106.3,44.9 L108.5,44.8 L110.7,45.0 L113.0,45.0 L115.2,44.8 L117.4,44.8 L119.6,44.9 L121.9,44.7 L124.1,45.0 L126.3,45.0 L128.6,45.1 L130.8,45.0 L133.0,38.5 L135.2,23.7 L137.5,44.9 L139.7,44.8 L141.9,44.8 L144.2,45.1 L146.4,20.6 L148.6,45.0 L150.8,44.8 L153.1,44.9 L155.3,42.7 L157.5,13.6 L159.8,44.5 L162.0,26.0 L164.2,40.5 L166.4,45.0 L168.7,11.4 L170.9,40.4 L173.1,25.3 L175.4,44.7 L177.6,45.0 L179.8,44.7 L182.0,13.2 L184.3,44.8 L186.5,44.1 L188.7,37.4 L190.9,44.8 L193.2,44.7 L195.4,10.6 L197.6,45.0 L199.9,44.9 L202.1,44.8 L204.3,11.5 L206.5,43.9 L208.8,44.9 L211.0,44.9 L213.2,44.5 L215.5,45.0 L217.7,10.0 L219.9,43.3 L222.1,45.0 L224.4,45.0 L226.6,44.8 L228.8,45.0 L231.1,10.2 L233.3,43.5 L235.5,44.8 L237.7,45.0 L240.0,44.8 L242.2,44.8 L244.4,17.3 L246.7,40.7 L248.9,23.9 L251.1,44.6 L253.3,44.7 L255.6,44.4 L257.8,11.5 L260.0,44.8 L262.3,44.9 L264.5,44.8 L266.7,44.7 L268.9,11.1 L271.2,43.8 L273.4,44.9 L275.6,45.0 L277.9,45.0 L280.1,44.9 L282.3,45.0 L284.5,45.0 L286.8,41.0 L289.0,44.6 L291.2,38.8 L293.5,45.0 L295.7,45.0 L297.9,43.2 L300.1,38.5 L302.4,45.0 L304.6,44.6 L306.8,45.1 L309.1,45.0 L311.3,44.9 L313.5,45.0 L315.7,44.9 L318.0,45.0 L320.2,40.2 L322.4,23.3 L324.6,41.5 L326.9,44.9 L329.1,44.7 L331.3,43.9 L333.6,45.0 L335.8,44.9 L338.0,44.9 L340.2,44.9 L342.5,44.8 L344.7,44.9 L346.9,43.0 L349.2,44.0 L351.4,45.0 L353.6,38.6 L355.8,44.9 L358.1,45.0 L360.3,45.0 L362.5,45.0 L364.8,45.1 L367.0,45.1 L369.2,45.0 L371.4,44.9 L373.7,45.1 L375.9,45.1 L378.1,45.0 L380.4,44.9 L382.6,45.0 L384.8,45.0 L387.0,44.6 L389.3,45.0 L391.5,45.0 L393.7,45.0 L396.0,31.8 L398.2,43.4 L400.4,44.7 L402.6,44.9 L404.9,44.9 L407.1,43.6 L409.3,40.5 L411.6,45.0 L413.8,44.7 L416.0,44.7 L418.2,44.8 L420.5,45.0 L422.7,45.1 L424.9,44.8 L427.2,45.1 L429.4,44.9 L431.6,45.0 L433.8,45.1 L436.1,45.1 L438.3,44.9 L440.5,44.8 L442.7,45.0 L445.0,45.1 L447.2,44.9 L449.4,45.0 L451.7,45.1 L453.9,45.0 L456.1,44.8 L458.3,45.0 L460.6,45.0 L462.8,12.2 L465.0,39.5 L467.3,38.6 L469.5,45.0 L471.7,45.0 L473.9,19.3 L476.2,35.3 L478.4,43.4 L480.6,43.8 L482.9,43.2 L485.1,13.0 L487.3,42.1 L489.5,45.0 L491.8,44.8 L494.0,44.9 L494.0,45.7 L491.8,45.8 L489.5,45.7 L487.3,47.4 L485.1,72.4 L482.9,47.7 L480.6,46.5 L478.4,46.9 L476.2,56.2 L473.9,74.3 L471.7,45.6 L469.5,45.5 L467.3,50.1 L465.0,49.1 L462.8,70.1 L460.6,45.5 L458.3,45.5 L456.1,45.7 L453.9,45.5 L451.7,45.5 L449.4,45.5 L447.2,46.0 L445.0,45.5 L442.7,45.5 L440.5,45.9 L438.3,45.8 L436.1,45.4 L433.8,45.5 L431.6,45.6 L429.4,45.9 L427.2,45.6 L424.9,46.0 L422.7,45.5 L420.5,45.5 L418.2,45.7 L416.0,45.8 L413.8,45.8 L411.6,45.5 L409.3,52.1 L407.1,46.8 L404.9,45.7 L402.6,45.7 L400.4,45.8 L398.2,46.8 L396.0,56.2 L393.7,45.5 L391.5,45.5 L389.3,45.5 L387.0,45.9 L384.8,45.5 L382.6,45.5 L380.4,45.5 L378.1,45.5 L375.9,45.6 L373.7,45.6 L371.4,45.5 L369.2,45.5 L367.0,45.5 L364.8,45.5 L362.5,45.5 L360.3,45.7 L358.1,45.5 L355.8,45.6 L353.6,55.1 L351.4,45.5 L349.2,47.1 L346.9,48.6 L344.7,45.5 L342.5,45.6 L340.2,45.6 L338.0,45.6 L335.8,45.5 L333.6,45.6 L331.3,46.2 L329.1,45.8 L326.9,46.0 L324.6,49.5 L322.4,63.2 L320.2,52.6 L318.0,45.5 L315.7,45.6 L313.5,45.5 L311.3,45.6 L309.1,45.5 L306.8,45.5 L304.6,45.8 L302.4,45.5 L300.1,55.6 L297.9,47.8 L295.7,45.6 L293.5,45.7 L291.2,52.0 L289.0,46.0 L286.8,49.4 L284.5,45.6 L282.3,45.6 L280.1,45.6 L277.9,45.5 L275.6,45.6 L273.4,45.6 L271.2,47.1 L268.9,72.9 L266.7,45.6 L264.5,45.6 L262.3,45.7 L260.0,45.7 L257.8,67.1 L255.6,46.2 L253.3,45.8 L251.1,45.8 L248.9,61.6 L246.7,52.6 L244.4,69.2 L242.2,45.7 L240.0,45.8 L237.7,45.7 L235.5,45.6 L233.3,47.5 L231.1,65.3 L228.8,45.7 L226.6,45.7 L224.4,45.6 L222.1,45.6 L219.9,46.9 L217.7,65.7 L215.5,45.7 L213.2,45.9 L211.0,45.6 L208.8,45.8 L206.5,47.2 L204.3,71.4 L202.1,45.6 L199.9,45.7 L197.6,45.5 L195.4,66.7 L193.2,45.6 L190.9,45.7 L188.7,56.1 L186.5,45.8 L184.3,45.8 L182.0,70.6 L179.8,45.7 L177.6,45.6 L175.4,45.7 L173.1,62.5 L170.9,47.4 L168.7,67.1 L166.4,45.6 L164.2,51.9 L162.0,60.3 L159.8,45.9 L157.5,71.2 L155.3,48.6 L153.1,45.6 L150.8,45.6 L148.6,45.6 L146.4,70.6 L144.2,45.6 L141.9,45.6 L139.7,45.7 L137.5,45.7 L135.2,66.7 L133.0,55.3 L130.8,45.7 L128.6,45.5 L126.3,45.5 L124.1,45.6 L121.9,45.9 L119.6,45.7 L117.4,45.7 L115.2,45.8 L113.0,45.6 L110.7,45.5 L108.5,45.7 L106.3,45.5 L104.0,45.8 L101.8,56.3 L99.6,45.6 L97.4,45.6 L95.1,45.5 L92.9,45.6 L90.7,48.3 L88.4,49.8 L86.2,45.6 L84.0,45.6 L81.8,45.5 L79.5,45.6 L77.3,50.9 L75.1,45.7 L72.8,46.0 L70.6,46.1 L68.4,45.9 L66.2,45.6 L63.9,45.5 L61.7,45.5 L59.5,45.5 L57.3,45.6 L55.0,46.2 L52.8,45.5 L50.6,52.9 L48.3,53.2 L46.1,45.5 L43.9,45.5 L41.7,45.5 L39.4,45.5 L37.2,45.6 L35.0,45.5 L32.7,45.6 L30.5,45.5 L28.3,45.5 L26.1,45.6 L23.8,45.5 L21.6,52.3 L19.4,46.0 L17.1,48.8 L14.9,49.1 L12.7,46.3 L10.5,45.8 L8.2,45.6 L6.0,49.9 Z"
+                        fill="#2dd4bf" fill-opacity="0.3" stroke="#2dd4bf" stroke-width="0.75" stroke-opacity="0.85"/>
+                </svg>
+                <div class="mf-bank-box">
+                  <svg viewBox="0 0 40 70" style="width:100%; height:100%;">
+                    <path d="M4,16 L7,3 L9,25 L12,7 L15,21 L18,13 L21,17 L24,15.5 L28,16 L40,16" stroke="currentColor" stroke-width="1.8" fill="none" opacity="0.95" stroke-linejoin="round"/>
+                    <path d="M4,35 Q9,21 14,35 T24,35 T34,35" stroke="currentColor" stroke-width="1.8" fill="none" opacity="0.65"/>
+                    <path d="M4,54 Q6.5,46 9,54 Q11,60 13,54 Q14.3,49.5 15.6,54 Q16.4,51 17.2,54 Q17.7,52.2 18.2,54 L40,54" stroke="currentColor" stroke-width="1.8" fill="none" opacity="0.4" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="mf-playhead"></div>
+
+            <div class="panel" style="height:110px; flex:none; display:flex; flex-direction:column; margin-top:10px;">
+              <div class="panel-label">Correlation response, traced live</div>
+              <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%; flex:1; overflow:visible;">
+                <line x1="0" y1="54" x2="500" y2="54" stroke="#1c3644" vector-effect="non-scaling-stroke"/>
+                <path id="mf-corr-path" class="mf-corr-curve" d="M0.0,49.19 L1.9,49.62 L3.9,49.83 L5.8,50.31 L7.7,50.42 L9.7,49.65 L11.6,49.46 L13.5,49.54 L15.4,48.83 L17.4,48.68 L19.3,49.28 L21.2,49.49 L23.2,49.20 L25.1,49.11 L27.0,49.92 L29.0,50.19 L30.9,50.66 L32.8,51.26 L34.7,52.48 L36.7,51.95 L38.6,52.34 L40.5,51.29 L42.5,50.60 L44.4,49.81 L46.3,50.90 L48.3,50.55 L50.2,50.70 L52.1,50.73 L54.1,51.37 L56.0,50.39 L57.9,50.60 L59.8,50.97 L61.8,50.51 L63.7,50.17 L65.6,49.95 L67.6,49.06 L69.5,48.95 L71.4,49.51 L73.4,49.07 L75.3,49.03 L77.2,50.04 L79.2,49.72 L81.1,49.02 L83.0,49.81 L84.9,49.43 L86.9,48.78 L88.8,49.13 L90.7,48.82 L92.7,47.71 L94.6,48.70 L96.5,48.72 L98.5,48.14 L100.4,49.19 L102.3,49.23 L104.2,48.68 L106.2,48.40 L108.1,47.98 L110.0,48.22 L112.0,48.45 L113.9,48.64 L115.8,48.90 L117.8,50.16 L119.7,50.11 L121.6,50.30 L123.6,49.65 L125.5,49.16 L127.4,49.23 L129.3,49.33 L131.3,48.93 L133.2,50.31 L135.1,51.08 L137.1,50.50 L139.0,49.51 L140.9,49.49 L142.9,48.69 L144.8,48.65 L146.7,48.72 L148.6,48.59 L150.6,49.13 L152.5,49.12 L154.4,48.77 L156.4,48.70 L158.3,49.53 L160.2,49.85 L162.2,49.70 L164.1,50.06 L166.0,49.42 L168.0,48.97 L169.9,48.38 L171.8,47.95 L173.7,47.75 L175.7,47.59 L177.6,47.60 L179.5,46.89 L181.5,47.25 L183.4,46.16 L185.3,46.48 L187.3,46.20 L189.2,45.07 L191.1,42.99 L193.1,40.84 L195.0,36.38 L196.9,32.92 L198.8,29.92 L200.8,26.06 L202.7,22.50 L204.6,20.30 L206.6,16.84 L208.5,13.37 L210.4,10.86 L212.4,9.82 L214.3,8.69 L216.2,8.22 L218.1,9.43 L220.1,10.60 L222.0,12.15 L223.9,13.74 L225.9,16.09 L227.8,18.15 L229.7,21.26 L231.7,23.61 L233.6,27.71 L235.5,30.99 L237.5,33.47 L239.4,36.76 L241.3,38.78 L243.2,41.01 L245.2,42.25 L247.1,44.73 L249.0,44.93 L251.0,46.55 L252.9,47.43 L254.8,47.91 L256.8,47.31 L258.7,48.05 L260.6,48.47 L262.5,47.94 L264.5,49.09 L266.4,49.31 L268.3,49.57 L270.3,49.48 L272.2,49.79 L274.1,49.63 L276.1,50.78 L278.0,49.91 L279.9,49.96 L281.9,49.12 L283.8,48.81 L285.7,48.53 L287.6,49.29 L289.6,49.49 L291.5,49.95 L293.4,50.14 L295.4,49.95 L297.3,50.45 L299.2,50.57 L301.2,49.78 L303.1,49.92 L305.0,50.28 L306.9,49.46 L308.9,48.40 L310.8,49.89 L312.7,49.67 L314.7,49.46 L316.6,50.47 L318.5,50.79 L320.5,50.11 L322.4,49.97 L324.3,50.03 L326.3,48.97 L328.2,49.58 L330.1,49.64 L332.0,50.20 L334.0,50.42 L335.9,50.00 L337.8,49.99 L339.8,49.78 L341.7,49.26 L343.6,48.89 L345.6,49.78 L347.5,49.23 L349.4,49.51 L351.4,49.57 L353.3,49.35 L355.2,48.54 L357.1,48.52 L359.1,48.19 L361.0,48.38 L362.9,49.06 L364.9,49.17 L366.8,49.03 L368.7,49.28 L370.7,48.75 L372.6,47.71 L374.5,47.77 L376.4,47.79 L378.4,47.94 L380.3,47.48 L382.2,48.45 L384.2,48.43 L386.1,48.64 L388.0,48.00 L390.0,47.83 L391.9,46.52 L393.8,47.48 L395.8,48.53 L397.7,48.55 L399.6,49.94 L401.5,50.66 L403.5,49.71 L405.4,49.69 L407.3,51.09 L409.3,50.48 L411.2,50.45 L413.1,50.97 L415.1,50.17 L417.0,49.57 L418.9,50.42 L420.8,50.52 L422.8,50.87 L424.7,51.67 L426.6,51.02 L428.6,50.32 L430.5,50.05 L432.4,50.06 L434.4,49.58 L436.3,50.30 L438.2,50.70 L440.2,50.80 L442.1,50.70 L444.0,50.22 L445.9,49.57 L447.9,48.18 L449.8,48.94 L451.7,48.14 L453.7,48.35 L455.6,48.52 L457.5,50.19 L459.5,49.74 L461.4,49.81 L463.3,49.81 L465.3,49.76 L467.2,49.20 L469.1,48.43 L471.0,48.80 L473.0,49.81 L474.9,50.18 L476.8,50.99 L478.8,53.04 L480.7,53.04 L482.6,51.65 L484.6,51.30 L486.5,50.92 L488.4,49.81 L490.3,49.01 L492.3,49.57 L494.2,49.57 L496.1,49.04 L498.1,48.58 L500.0,49.13"
+                      fill="none" stroke="#2dd4bf" stroke-width="2" vector-effect="non-scaling-stroke" stroke-dasharray="3000" stroke-dashoffset="3000"/>
+                <circle class="mf-corr-dot" r="4"/>
+                <text class="mf-peak-label" x="222" y="18" fill="#f4a261" font-size="10" font-family="monospace">&asymp; 1.0</text>
+              </svg>
+            </div>
+          </div>
+
+          <p class="fig-caption" style="margin-top:10px;">Loops continuously &mdash; three template shapes (click / tonal / chirp), one signal, one dot tracing the response.</p>
+        </div>
+      </section>
+
+      <section id="slide-12b">
+        <h2>What a Deployment-Grade Detector Adds</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-bolt" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>GCC-PHAT / FFT correlation</strong><br>Whitened, frequency-domain matching &mdash; fast, not loudest-band-biased.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-layer-group" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>Real template libraries</strong><br>Hundreds of templates per class, updated from confirmed detections.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-sliders" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>CFAR thresholding</strong><br>Threshold tracks the local noise floor, not a fixed cutoff.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-filter" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>Pre-whitening</strong><br>Spectrum flattened against ambient noise before correlating.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-arrows-left-right" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>Doppler / time-scale robustness</strong><br>Template banks span time- and pitch-shifted variants.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-route" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0 0; font-size:13pt; line-height:1.35;"><strong>Track-before-detect &amp; ROC tuning</strong><br>Hits link into tracks; threshold set from a labeled ROC curve.</p>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:12px; padding:12px 18px; border-color: var(--secondary-color); display:flex; align-items:center; gap:16px;">
+            <span class="pill amber">the honest gap</span>
+            <p style="margin:0; font-size:13pt;">This project's <span class="mono">matched_filter_bank</span> covers #1's core math and a miniature #2 (four raw clips) &mdash; #3&ndash;#6 are real, scoped extension work.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="divider-4" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 4 &middot; Notebooks 02&ndash;04</div>
+        <h1>Three Classifier<br>Architectures</h1>
+        <p>From-scratch CNN &middot; ImageNet transfer &middot; AudioSet transformer</p>
+      </section>
+
+      <section id="slide-14">
+        <h2>Baseline CNN: the Floor Every Model Must Beat</h2>
+        <div class="content" style="justify-content: center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+
+            <div style="text-align:center;">
+              <div style="width:60px; height:80px; background:linear-gradient(180deg,#123241,#0a1a26); border:1px solid #2dd4bf; border-radius:4px;"></div>
+              <p class="fig-caption">log-mel<br>input</p>
+            </div>
+
+            <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+
+            <div style="text-align:center;">
+              <div style="display:flex; gap:2px; align-items:flex-end; height:80px;">
+                <div style="width:12px; height:80px; background:#17303f; border:1px solid #2dd4bf;"></div>
+                <div style="width:12px; height:66px; background:#1a3846; border:1px solid #2dd4bf;"></div>
+                <div style="width:12px; height:52px; background:#1d4652; border:1px solid #2dd4bf;"></div>
+                <div style="width:12px; height:38px; background:#20545e; border:1px solid #2dd4bf;"></div>
+              </div>
+              <p class="fig-caption">conv&middot;bn&middot;relu<br>maxpool &times;4</p>
+            </div>
+
+            <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+
+            <div style="text-align:center;">
+              <div style="width:44px; height:44px; margin:18px auto; border-radius:50%; border:2px solid var(--secondary-color); display:flex; align-items:center; justify-content:center; font-family:var(--mono-font); font-size:9pt; color:var(--secondary-color);">avg</div>
+              <p class="fig-caption">global<br>avg pool</p>
+            </div>
+
+            <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+
+            <div style="text-align:center;">
+              <div style="width:60px; height:80px; background:var(--panel-color); border:1px solid var(--panel-border); border-radius:4px; display:flex; align-items:center; justify-content:center; font-family:var(--mono-font); font-size:9pt; color:var(--text-color);">linear</div>
+              <p class="fig-caption">classifier<br>head</p>
+            </div>
+
+            <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+
+            <div style="text-align:center;">
+              <div class="stat-tile" style="width:90px;"><div class="stat-number" style="font-size:26pt;">54</div><div class="stat-label">species</div></div>
+            </div>
+
+          </div>
+          <div style="display:flex; justify-content:center; margin-top:30px;">
+            <div class="panel" style="display:flex; gap:24px; align-items:center;">
+              <span class="pill">~403K parameters</span>
+              <p class="text-lg" style="margin:0;">No pretraining. If a bigger model can't beat this by a real margin, its extra complexity isn't earning its keep.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-15">
+        <h2>Transfer Learning: What Actually Transfers</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:16px;">Not "knowing what a dog looks like" &mdash; the <strong>low-level visual vocabulary</strong> (edges, textures, blobs) early layers learn, useful for any 2D signal with local structure.</p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px; flex:1;">
+
+            <div class="panel" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <div class="panel-label" style="align-self:flex-start;">Frozen backbone (linear probe)</div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                <div style="text-align:center;">
+                  <div style="width:110px; height:70px; background:#17303f; border:2px dashed #7a97a3; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-lock" style="color:#7a97a3; font-size:20pt;"></i>
+                  </div>
+                  <p class="fig-caption">pretrained backbone<br>(untouched)</p>
+                </div>
+                <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+                <div style="text-align:center;">
+                  <div style="width:64px; height:70px; background:#2dd4bf; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-bolt" style="color:#06251f; font-size:18pt;"></i>
+                  </div>
+                  <p class="fig-caption">head trains<br>(fast, cheap)</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border-color: var(--secondary-color);">
+              <div class="panel-label" style="align-self:flex-start; color:var(--secondary-color);">Fine-tuned</div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                <div style="text-align:center;">
+                  <div style="width:110px; height:70px; background:#f4a261; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-lock-open" style="color:#3a2410; font-size:20pt;"></i>
+                  </div>
+                  <p class="fig-caption">backbone nudges<br>(small LR)</p>
+                </div>
+                <i class="fa-solid fa-arrow-right" style="color:var(--muted-color);"></i>
+                <div style="text-align:center;">
+                  <div style="width:64px; height:70px; background:#f4a261; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-bolt" style="color:#3a2410; font-size:18pt;"></i>
+                  </div>
+                  <p class="fig-caption">head trains<br>(faster LR)</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-16">
+        <h2>AST: Self-Attention Over Spectrogram Patches</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 3fr 2fr; gap:28px; flex:1;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Every patch attends to every patch, from layer 1</div>
+              <svg viewBox="0 0 360 190" style="width:100%; flex:1;">
+                <g fill="#123241" stroke="#274753" stroke-width="1">
+                  <rect x="4"   y="6"  width="40" height="34"/><rect x="48"  y="6"  width="40" height="34"/><rect x="92"  y="6"  width="40" height="34"/><rect x="136" y="6"  width="40" height="34"/><rect x="180" y="6"  width="40" height="34"/><rect x="224" y="6"  width="40" height="34"/><rect x="268" y="6"  width="40" height="34"/><rect x="312" y="6"  width="40" height="34"/>
+                  <rect x="4"   y="44" width="40" height="34"/><rect x="48"  y="44" width="40" height="34"/><rect x="92"  y="44" width="40" height="34"/><rect x="136" y="44" width="40" height="34"/><rect x="180" y="44" width="40" height="34"/><rect x="224" y="44" width="40" height="34"/><rect x="268" y="44" width="40" height="34"/><rect x="312" y="44" width="40" height="34"/>
+                  <rect x="4"   y="82" width="40" height="34"/><rect x="48"  y="82" width="40" height="34"/><rect x="92"  y="82" width="40" height="34"/><rect x="136" y="82" width="40" height="34" fill="#f4a261" stroke="#f4a261"/><rect x="180" y="82" width="40" height="34"/><rect x="224" y="82" width="40" height="34"/><rect x="268" y="82" width="40" height="34"/><rect x="312" y="82" width="40" height="34"/>
+                  <rect x="4"   y="120" width="40" height="34"/><rect x="48" y="120" width="40" height="34"/><rect x="92" y="120" width="40" height="34"/><rect x="136" y="120" width="40" height="34"/><rect x="180" y="120" width="40" height="34"/><rect x="224" y="120" width="40" height="34"/><rect x="268" y="120" width="40" height="34"/><rect x="312" y="120" width="40" height="34"/>
+                  <rect x="4"   y="158" width="40" height="26"/><rect x="48" y="158" width="40" height="26"/><rect x="92" y="158" width="40" height="26"/><rect x="136" y="158" width="40" height="26"/><rect x="180" y="158" width="40" height="26"/><rect x="224" y="158" width="40" height="26"/><rect x="268" y="158" width="40" height="26"/><rect x="312" y="158" width="40" height="26"/>
+                </g>
+                <g stroke="#2dd4bf" stroke-width="1.4" fill="none" opacity="0.85">
+                  <path d="M156,99 Q90,20 24,23"/>
+                  <path d="M156,99 Q260,10 288,23"/>
+                  <path d="M156,99 Q60,140 24,171"/>
+                  <path d="M156,99 Q300,150 332,171"/>
+                  <path d="M156,99 Q200,60 332,44"/>
+                </g>
+              </svg>
+              <p class="fig-caption">amber = query patch &middot; teal = attended patches, anywhere in the image</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div class="panel" style="padding:12px 18px;">
+                <span class="pill amber">CNN</span>
+                <p class="text-lg" style="margin:8px 0 0 0;">Local receptive field &mdash; distant patches only interact after many stacked layers.</p>
+              </div>
+              <div class="panel" style="padding:12px 18px; border-color: var(--primary-color);">
+                <span class="pill">Transformer (AST)</span>
+                <p class="text-lg" style="margin:8px 0 0 0;">Global from layer 1 &mdash; a click at t=0.1s can directly attend to a tonal at t=2.9s.</p>
+              </div>
+              <div class="panel" style="padding:12px 18px;">
+                <p class="text-lg" style="margin:0;">Pretrained on <strong>AudioSet</strong> (2M+ clips, general sound events) &mdash; closer domain than ImageNet, but still no underwater audio.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="divider-5" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 5 &middot; Notebook 05</div>
+        <h1>Evaluating an<br>Imbalanced Classifier</h1>
+        <p>Why accuracy alone lies to you</p>
+      </section>
+
+      <section id="slide-18" style="display: flex; flex-direction: column; height: 100%;">
+        <h2>The Imbalance Trap</h2>
+        <div style="flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:28px; min-height:0; min-width:0; padding-top:20px;">
+          <div style="position:relative; min-height:0; min-width:0;">
+            <canvas data-chart="bar">
+            <!--
+            {
+              "data": {
+                "labels": ["Accuracy", "Macro F1"],
+                "datasets": [
+                  { "label": "Leans on 2-3 big species", "data": [0.45, 0.06], "backgroundColor": "#f43f5e" },
+                  { "label": "Genuinely discriminative", "data": [0.55, 0.50], "backgroundColor": "#2dd4bf" }
+                ]
+              },
+              "options": {
+                "maintainAspectRatio": false,
+                "plugins": { "legend": { "position": "bottom" }, "title": { "display": true, "text": "Illustrative, not measured", "color": "#7a97a3", "font": { "size": 11 } } },
+                "scales": { "y": { "beginAtZero": true, "max": 1 } }
+              }
+            }
+            -->
+            </canvas>
+          </div>
+          <div style="display:flex; flex-direction:column; justify-content:center; gap:16px;">
+            <div class="panel">
+              <p class="text-lg" style="margin:0;"><span class="pill rose">shortcut model</span></p>
+              <p class="text-lg" style="margin-top:10px;">Similar accuracy to a good model &mdash; but does well only on killer whale / sperm whale, and scores ~0 on most of the other 50+ species.</p>
+            </div>
+            <div class="panel" style="border-color: var(--primary-color);">
+              <p class="text-lg" style="margin:0;"><span class="pill">macro-F1</span></p>
+              <p class="text-lg" style="margin-top:10px;"><strong>Unweighted</strong> average of per-class F1 &mdash; every species counts equally, so it exposes what accuracy hides.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="divider-6" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 6 &middot; Notebook 06</div>
+        <h1>Robustness to Noise</h1>
+        <p>From curated archive to a real, distant hydrophone</p>
+      </section>
+
+      <section id="slide-20" style="display: flex; flex-direction: column; height: 100%;">
+        <h2>Degenerate "Robustness" vs. the Real Thing</h2>
+        <div style="flex:1; display:grid; grid-template-rows: 1fr 2fr; gap:18px; min-height:0; min-width:0; padding-top:20px;">
+          <div class="panel" style="display:flex; align-items:center; gap:20px;">
+            <span class="pill rose">watch for this</span>
+            <p class="text-lg" style="margin:0;">If aggregate accuracy stays high while rare-species accuracy collapses, the model isn't robust &mdash; it's just defaulting to the majority species. Illustrative curves, not measured.</p>
+          </div>
+          <div style="position:relative; min-height:0; min-width:0;">
+            <canvas data-chart="line">
+            <!--
+            {
+              "data": {
+                "labels": ["clean", "20dB", "10dB", "5dB", "0dB", "-5dB", "-10dB"],
+                "datasets": [
+                  { "label": "Aggregate accuracy (misleading)", "data": [0.58, 0.55, 0.50, 0.46, 0.40, 0.34, 0.30], "borderColor": "#f43f5e", "backgroundColor": "#f43f5e", "fill": false, "tension": 0.3 },
+                  { "label": "Rare-species accuracy (the truth)", "data": [0.44, 0.38, 0.28, 0.16, 0.07, 0.02, 0.0], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.3 }
+                ]
+              },
+              "options": {
+                "maintainAspectRatio": false,
+                "plugins": { "legend": { "position": "bottom" } },
+                "scales": {
+                  "y": { "beginAtZero": true, "max": 1, "title": { "display": true, "text": "accuracy" } },
+                  "x": { "title": { "display": true, "text": "SNR (worsening →)" } }
+                }
+              }
+            }
+            -->
+            </canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-21">
+        <h2>The Theory, End to End</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; flex:1;">
+            <div class="panel"><i class="fa-solid fa-layer-group" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>00</strong> &mdash; imbalance &amp; leakage-safe splits</p></div>
+            <div class="panel"><i class="fa-solid fa-wave-square" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>01</strong> &mdash; STFT, LOFAR, DEMON, matched filter</p></div>
+            <div class="panel"><i class="fa-solid fa-diagram-project" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>02</strong> &mdash; from-scratch CNN baseline</p></div>
+            <div class="panel"><i class="fa-solid fa-arrows-split-up-and-left" style="color:var(--secondary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>03</strong> &mdash; ImageNet transfer learning</p></div>
+            <div class="panel"><i class="fa-solid fa-circle-nodes" style="color:var(--secondary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>04</strong> &mdash; AST self-attention</p></div>
+            <div class="panel"><i class="fa-solid fa-shield-halved" style="color:var(--tertiary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>05&ndash;06</strong> &mdash; macro-F1 &amp; noise robustness</p></div>
+          </div>
+          <p class="text-lg" style="margin-top:22px; text-align:center; color:var(--muted-color);">Run the exercises in <span class="mono">notebooks/</span> &middot; extensions in <span class="mono">docs/next_steps.md</span></p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chart/plugin.js"></script>
+  <script>
+    Reveal.initialize({
+      width: 1280,
+      height: 720,
+      margin: 0,
+      controls: true,
+      progress: true,
+      slideNumber: false,
+      hash: true,
+      transition: 'slide',
+      center: false,
+      plugins: [ RevealChart ],
+      chart: {
+        defaults: Object.assign({
+          color: 'rgba(232, 241, 242, 0.85)',
+          borderColor: 'rgba(122, 151, 163, 0.35)',
+          devicePixelRatio: 2
+        }, window.location.search.includes('export') ? { animation: false } : {})
+      }
+    });
+
+    // Restart the matched-filter CSS animation (slide 12) in sync whenever
+    // that slide becomes current, rather than resuming mid-loop out of phase.
+    function restartMatchedFilterAnimation() {
+      var wrap = document.getElementById('mf-anim-wrap');
+      if (!wrap) return;
+      var els = wrap.querySelectorAll('*');
+      els.forEach(function (el) { el.style.animation = 'none'; });
+      void wrap.offsetWidth; // force reflow
+      els.forEach(function (el) { el.style.animation = ''; });
+    }
+    Reveal.on('slidechanged', function (event) {
+      if (event.currentSlide && event.currentSlide.id === 'slide-12') {
+        restartMatchedFilterAnimation();
+      }
+    });
+    Reveal.on('ready', function (event) {
+      if (event.currentSlide && event.currentSlide.id === 'slide-12') {
+        restartMatchedFilterAnimation();
+      }
+    });
+  </script>
+</body>
+</html>

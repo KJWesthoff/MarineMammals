@@ -1,0 +1,17 @@
+run_name: resnet18
+model: resnet18
+model_kwargs:
+  pretrained: true
+  freeze_backbone: false
+batch_size: 16
+epochs: 25
+lr: 0.0003
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: true
+spec_augment: true
+noise_augment_p: 0.3
+class_weighted_loss: true
+seed: 42
+patience: 8
+num_workers: 2

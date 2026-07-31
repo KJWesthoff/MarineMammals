@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.cache/
+.ipynb_checkpoints/
+*.egg-info/
+node_modules/
+
+# The materialized dataset (~2GB) is fully re-derivable from the public
+# Hugging Face source -- run `python -m watkins.prepare_data` instead of
+# checking it in or copying it to a rented GPU box.
+Watkins/
+
+# Source papers are third-party copyrighted PDFs; keep them local.
+*.pdf
+
+# Trained checkpoints can be large; keep metrics/figures/logs (small,
+# useful for review) but not raw weights, by default. Comment this out
+# if you want to version checkpoints too.
+results/checkpoints/*.pt
