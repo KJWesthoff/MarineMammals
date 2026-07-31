@@ -88,4 +88,46 @@ train() {
     echo "started pid $! -> $log"
 }
 
+GPU_RUNS="baseline_cnn resnet18 efficientnet_b0 ast_linear_probe ast_finetune"
+
+# --- Train + evaluate + robustness-sweep all five configs, end to end -------
+# Fills in everything notebooks 05 and 06 read. Deliberately does NOT abort the
+# whole batch when one model fails: a late OOM or a bad config should cost you
+# that model, not the four that already succeeded.
+run_all() {
+    cd "$REPO_DIR"
+    local ck="$WATKINS_RESULTS_ROOT/checkpoints"
+    local failed=""
+
+    for name in $GPU_RUNS; do
+        echo "=== TRAIN $name ==="
+        python -m watkins.train --config "configs/gpu/$name.yaml" \
+            || { echo "!!! TRAIN FAILED: $name"; failed="$failed train:$name"; }
+    done
+
+    for name in $GPU_RUNS; do
+        local run="${name}_gpu"
+        [ -f "$ck/${run}_best.pt" ] || { echo "--- skip $run (no checkpoint)"; continue; }
+        echo "=== EVAL $run ==="
+        python -m watkins.evaluate --checkpoint "$ck/${run}_best.pt" \
+            || { echo "!!! EVAL FAILED: $run"; failed="$failed eval:$run"; }
+        echo "=== ROBUSTNESS $run ==="
+        python -m watkins.robustness --checkpoint "$ck/${run}_best.pt" \
+            || { echo "!!! ROBUSTNESS FAILED: $run"; failed="$failed robust:$run"; }
+    done
+
+    echo "=== SUMMARY ==="
+    ls -la "$WATKINS_RESULTS_ROOT/metrics" "$WATKINS_RESULTS_ROOT/figures" 2>/dev/null || true
+    [ -n "$failed" ] && echo "FAILURES:$failed" || echo "all five configs completed"
+    echo "=== RUN_ALL_DONE ==="
+}
+
+# Same, detached, so it survives the SSH session dropping.
+run_all_bg() {
+    mkdir -p "$WATKINS_RESULTS_ROOT"
+    local log="$WATKINS_RESULTS_ROOT/run_all.log"
+    setsid nohup bash "${BASH_SOURCE[0]}" run_all > "$log" 2>&1 &
+    echo "started pid $! -> $log"
+}
+
 "${1:-check}"
