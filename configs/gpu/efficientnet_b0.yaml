@@ -1,0 +1,20 @@
+# EfficientNet-B0 transfer learning, scaled for a rented GPU.
+# See gpu/resnet18.yaml for the rationale behind the batch/lr scaling.
+run_name: efficientnet_b0_gpu
+model: efficientnet_b0
+model_kwargs:
+  pretrained: true
+  freeze_backbone: false
+batch_size: 64
+epochs: 40
+lr: 0.0006
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: true
+spec_augment: true
+noise_augment_p: 0.3
+class_weighted_loss: true
+seed: 42
+patience: 8
+num_workers: 8
+amp: auto

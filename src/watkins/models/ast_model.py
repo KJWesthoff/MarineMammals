@@ -86,7 +86,8 @@ def build_ast_classifier(num_classes: int, freeze_backbone: bool = True,
 
 
 @torch.no_grad()
-def extract_embeddings(model: ASTClassifier, dataloader, device: torch.device):
+def extract_embeddings(model: ASTClassifier, dataloader, device: torch.device,
+                        amp_dtype: torch.dtype | None = None):
     """Run the (frozen) backbone once over a dataloader of AST input
     features and return (embeddings [N, hidden], labels [N]).
 
@@ -94,14 +95,20 @@ def extract_embeddings(model: ASTClassifier, dataloader, device: torch.device):
     probe into a fast "train logistic regression on cached features"
     problem -- the whole point of freezing the backbone in the first
     place.
+
+    `amp_dtype` (see utils.autocast_dtype) runs the backbone in reduced
+    precision, which is where nearly all of this path's wall-clock time
+    goes on a GPU. Embeddings are always cast back to float32 before
+    caching so the downstream head trains in full precision regardless.
     """
     model.eval()
     all_feats, all_labels = [], []
     for batch in dataloader:
         x, y = batch[0], batch[1]
-        x = x.to(device)
-        pooled = model.backbone(x).pooler_output  # [B, hidden]
-        all_feats.append(pooled.cpu())
+        x = x.to(device, non_blocking=True)
+        with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
+            pooled = model.backbone(x).pooler_output  # [B, hidden]
+        all_feats.append(pooled.float().cpu())
         all_labels.append(y)
     return torch.cat(all_feats), torch.cat(all_labels)
 

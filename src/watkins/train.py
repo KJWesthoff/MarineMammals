@@ -27,7 +27,8 @@ from .data import CLASS_IDS, NUM_CLASSES, get_split
 from .models import build_model
 from .models.ast_model import LinearProbeHead, extract_embeddings
 from .pipeline import build_dataloaders
-from .utils import AverageMeter, EarlyStopping, count_parameters, get_device, results_root, set_seed
+from .utils import (AverageMeter, EarlyStopping, autocast_dtype, count_parameters, get_device,
+                     results_root, set_seed)
 
 DEFAULT_CONFIG = dict(
     run_name="unnamed_run",
@@ -45,6 +46,7 @@ DEFAULT_CONFIG = dict(
     seed=42,
     patience=8,
     num_workers=0,
+    amp="auto",  # mixed precision: "auto" (GPU only), or True/False to force
     subset_frac=1.0,  # for quick smoke tests; 1.0 = full split
     split_mode="tape_grouped",  # "clip_random" for the deliberately leaky comparison
 )
@@ -80,7 +82,7 @@ def _build_optimizer(cfg: dict, params):
     raise ValueError(f"Unknown optimizer: {cfg['optimizer']!r}")
 
 
-def _run_epoch(model, loader, criterion, device, optimizer=None):
+def _run_epoch(model, loader, criterion, device, optimizer=None, amp_dtype=None, scaler=None):
     train_mode = optimizer is not None
     model.train(train_mode)
     loss_meter = AverageMeter()
@@ -88,13 +90,20 @@ def _run_epoch(model, loader, criterion, device, optimizer=None):
     torch.set_grad_enabled(train_mode)
     iterator = tqdm(loader, leave=False, desc="train" if train_mode else "eval") if train_mode else loader
     for x, y, _clips in iterator:
-        x, y = x.to(device), y.to(device)
-        logits = model(x)
-        loss = criterion(logits, y)
+        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+        with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
+            logits = model(x)
+            loss = criterion(logits, y)
         if train_mode:
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            if scaler is not None and scaler.is_enabled():
+                # fp16 only: gradients can underflow to zero without scaling.
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
         loss_meter.update(loss.item(), n=x.size(0))
         all_preds.append(logits.argmax(dim=1).detach().cpu())
         all_labels.append(y.detach().cpu())
@@ -112,19 +121,28 @@ def _train_generic(cfg: dict, model, input_kind: str, split, device) -> dict:
         batch_size=cfg["batch_size"], num_workers=cfg["num_workers"],
         train_augment=cfg["train_augment"], noise_augment_p=cfg["noise_augment_p"],
         spec_augment=cfg["spec_augment"],
+        pin_memory=device.type == "cuda",
     )
     weight = _class_weights(split.train, device) if cfg["class_weighted_loss"] else None
     criterion = nn.CrossEntropyLoss(weight=weight)
     optimizer = _build_optimizer(cfg, (p for p in model.parameters() if p.requires_grad))
     stopper = EarlyStopping(patience=cfg["patience"])
 
+    amp_dtype = autocast_dtype(device, cfg["amp"])
+    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    if amp_dtype is not None:
+        print(f"[{cfg['run_name']}] mixed precision: {amp_dtype} "
+              f"(grad scaler {'on' if scaler.is_enabled() else 'off'})")
+
     log_rows = []
     best_f1 = -1.0
     best_state = None
     for epoch in range(1, cfg["epochs"] + 1):
         t0 = time.perf_counter()
-        train_loss, train_acc, train_f1 = _run_epoch(model, train_dl, criterion, device, optimizer)
-        val_loss, val_acc, val_f1 = _run_epoch(model, val_dl, criterion, device, optimizer=None)
+        train_loss, train_acc, train_f1 = _run_epoch(
+            model, train_dl, criterion, device, optimizer, amp_dtype=amp_dtype, scaler=scaler)
+        val_loss, val_acc, val_f1 = _run_epoch(
+            model, val_dl, criterion, device, optimizer=None, amp_dtype=amp_dtype)
         elapsed = time.perf_counter() - t0
         log_rows.append(dict(epoch=epoch, train_loss=train_loss, train_acc=train_acc, train_f1=train_f1,
                               val_loss=val_loss, val_acc=val_acc, val_f1=val_f1, seconds=elapsed))
@@ -140,7 +158,8 @@ def _train_generic(cfg: dict, model, input_kind: str, split, device) -> dict:
 
     if best_state is not None:
         model.load_state_dict(best_state)
-    test_loss, test_acc, test_f1 = _run_epoch(model, test_dl, criterion, device, optimizer=None)
+    test_loss, test_acc, test_f1 = _run_epoch(
+        model, test_dl, criterion, device, optimizer=None, amp_dtype=amp_dtype)
     print(f"[{cfg['run_name']}] TEST acc={test_acc:.3f} macro_f1={test_f1:.3f}")
     return dict(log_rows=log_rows, best_val_f1=best_f1, test_acc=test_acc, test_f1=test_f1)
 
@@ -155,12 +174,18 @@ def _train_ast_linear_probe(cfg: dict, model, split, device) -> dict:
         train_augment=False,  # caching requires deterministic inputs
         noise_augment_p=0.0, spec_augment=False,
         drop_last_train=False,  # single-pass embedding extraction: keep every sample
+        pin_memory=device.type == "cuda",
     )
     model.to(device)
-    print(f"[{cfg['run_name']}] extracting frozen AST embeddings (train/val/test)...")
-    train_feats, train_labels = extract_embeddings(model, train_dl, device)
-    val_feats, val_labels = extract_embeddings(model, val_dl, device)
-    test_feats, test_labels = extract_embeddings(model, test_dl, device)
+    # The one-time backbone forward pass dominates this path's cost, so it's
+    # where mixed precision pays off; the head then trains in fp32 on the
+    # cached (float32-cast) embeddings.
+    amp_dtype = autocast_dtype(device, cfg["amp"])
+    print(f"[{cfg['run_name']}] extracting frozen AST embeddings (train/val/test)"
+          f"{f' [{amp_dtype}]' if amp_dtype is not None else ''}...")
+    train_feats, train_labels = extract_embeddings(model, train_dl, device, amp_dtype=amp_dtype)
+    val_feats, val_labels = extract_embeddings(model, val_dl, device, amp_dtype=amp_dtype)
+    test_feats, test_labels = extract_embeddings(model, test_dl, device, amp_dtype=amp_dtype)
 
     head = LinearProbeHead(hidden_size=train_feats.shape[1], num_classes=NUM_CLASSES).to(device)
     weight = None

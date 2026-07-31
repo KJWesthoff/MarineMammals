@@ -101,7 +101,8 @@ this project targets **CPU** throughout, on an 8-core / 30GB RAM machine.
 If you're running this on different hardware with a supported GPU,
 nothing in `watkins.utils.get_device()` needs to change -- it already
 tries CUDA first and only falls back to CPU if a real kernel launch
-fails.
+fails. Use `requirements-gpu.txt` and the scaled-up `configs/gpu/`
+variants there; see [Running on a rented GPU](#running-on-a-rented-gpu).
 
 ## Project layout
 
@@ -126,6 +127,7 @@ src/watkins/                 the library everything else is built on
         efficientnet.py           EfficientNet-B0 (ImageNet transfer learning)
         ast_model.py              Audio Spectrogram Transformer (AudioSet transfer learning)
 configs/                     one YAML per experiment (model + training hyperparameters)
+    gpu/                        the same experiments scaled up for a rented GPU
 notebooks/                   the 7-lesson curriculum described above
 results/
     checkpoints/                trained model weights (+ config used to produce them)
@@ -182,6 +184,48 @@ Every config in `configs/` accepts `--epochs`, `--subset-frac`,
 `--batch-size`, and `--run-name` overrides for quick experiments without
 editing the YAML (e.g. `--subset-frac 0.2 --epochs 3` for a fast sanity
 check before committing to a full run).
+
+## Running on a rented GPU
+
+The configs in `configs/` are sized to complete on this project's CPU-only
+development machine. `configs/gpu/` holds the same five experiments scaled
+up for a real GPU -- larger batches, more workers, the full dataset, and
+mixed precision -- with `configs/gpu/ast_finetune.yaml` in particular
+being the run the CPU default can't realistically do (86M parameters
+unfrozen over all 15k clips; roughly an hour on an RTX 4090).
+
+The dataset never needs to be uploaded: it's ~2GB materialized but fully
+re-derivable from the public Hugging Face source, so rebuilding it on the
+remote box is faster than copying it. On a fresh pod:
+
+```bash
+git clone <your-fork> && cd ShipsEAR
+pip install -r requirements-gpu.txt        # NOT requirements.txt -- see below
+pip install -e . --no-deps
+python -m watkins.prepare_data             # ~10-15 min
+python -m watkins.train --config configs/gpu/ast_finetune.yaml
+```
+
+**Install `requirements-gpu.txt`, not `requirements.txt`.** The latter
+documents the CPU-only wheel index (this machine's Quadro P520 is
+unsupported by current CUDA wheels, as above); installing it on a GPU box
+gives you a CPU-only torch and every run silently falls back to CPU with
+no error. On Colab/Kaggle, install neither -- their images ship a
+preinstalled, driver-matched torch, and the notebooks' bootstrap cell
+already installs only the missing extras.
+
+Mixed precision is controlled by the `amp` config key, default `"auto"`:
+bfloat16 on Ampere-and-newer cards, float16 (with gradient scaling) on
+older ones like a free-Colab T4, and off on CPU, so CPU runs are
+bit-for-bit unchanged. Set `amp: false` to disable it, or `amp: true` to
+force it on.
+
+Point `WATKINS_DATA_ROOT` and `WATKINS_RESULTS_ROOT` (see
+`watkins.utils`) at, respectively, fast ephemeral disk and whatever
+storage outlives the instance -- a persistent volume, a mounted bucket,
+or Google Drive on Colab. Training reads thousands of small files per
+epoch, so the dataset in particular wants local disk, not a network
+filesystem.
 
 ## Running on Google Colab
 

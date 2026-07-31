@@ -1,6 +1,8 @@
 # Full fine-tuning of AST's 86M parameters. Slow on CPU -- this config
-# defaults to a small subset and few epochs so it's runnable as a demo;
-# scale subset_frac/epochs up if you have real compute (see README).
+# defaults to a small subset and few epochs so it's runnable as a demo.
+# On a real GPU, use configs/gpu/ast_finetune.yaml instead: same model,
+# full dataset, larger batch, mixed precision (see README, "Running on a
+# rented GPU").
 run_name: ast_finetune
 model: ast
 model_kwargs:

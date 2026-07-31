@@ -1,0 +1,23 @@
+# From-scratch baseline CNN, scaled for a rented GPU.
+#
+# This model is small enough that on a modern card the GPU is mostly idle
+# waiting on the dataloader -- per-sample STFT feature extraction on the
+# CPU workers is the bottleneck, not the forward/backward pass. num_workers
+# matters more than batch_size here; raise it toward the box's core count
+# if epochs still look CPU-bound.
+run_name: baseline_cnn_gpu
+model: baseline_cnn
+model_kwargs: {}
+batch_size: 128
+epochs: 60
+lr: 0.002
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: true
+spec_augment: true
+noise_augment_p: 0.3
+class_weighted_loss: true
+seed: 42
+patience: 10
+num_workers: 8
+amp: auto

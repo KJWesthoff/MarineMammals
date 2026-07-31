@@ -1,0 +1,65 @@
+# GPU environment (rented cloud GPU, Colab, Kaggle, RunPod, Modal, ...).
+#
+# Use this INSTEAD of requirements.txt on any machine with a usable GPU.
+# requirements.txt documents the CPU-only wheel index
+# (https://download.pytorch.org/whl/cpu) because this project's development
+# machine has a Pascal-generation Quadro P520 that current CUDA wheels
+# don't support -- installing that file on a GPU box silently gives you a
+# CPU-only torch and every run quietly falls back to CPU. Hence a separate
+# file rather than a comment nobody reads at 2am.
+#
+#   pip install -r requirements-gpu.txt
+#
+# No index-url override here on purpose: the default PyPI linux wheels for
+# torch/torchaudio/torchvision already bundle CUDA. If you need a specific
+# CUDA version (e.g. an older driver), install torch first, explicitly:
+#
+#   pip install --index-url https://download.pytorch.org/whl/cu126 \
+#       torch torchaudio torchvision
+#   pip install -r requirements-gpu.txt
+#
+# ...then this file's already-satisfied torch pins are left alone by pip.
+#
+# ON COLAB/KAGGLE, DO NOT INSTALL TORCH AT ALL. Their base images ship a
+# preinstalled, driver-matched build; overwriting it is the single most
+# common way to end up on CPU without noticing. Install only the extras:
+#
+#   pip install transformers timm soundfile datasets huggingface_hub pyarrow
+#
+# (This is what the notebooks' Colab bootstrap cell already does.)
+
+# Core DL stack -- CUDA builds.
+torch>=2.4
+torchaudio>=2.4
+torchvision>=0.19
+
+# Pretrained model zoo / transformer backbones
+transformers>=4.40
+timm
+
+# Data / science
+numpy
+scipy
+pandas
+scikit-learn
+
+# Dataset download (Watkins Marine Mammal Sound Database, from Hugging Face)
+datasets
+huggingface_hub
+pyarrow
+
+# Audio I/O
+soundfile
+
+# Viz
+matplotlib
+seaborn
+
+# Utilities
+tqdm
+pyyaml
+tensorboard
+
+# Notebooks
+jupyterlab
+ipykernel

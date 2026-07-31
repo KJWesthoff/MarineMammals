@@ -1,0 +1,26 @@
+# ResNet-18 transfer learning, scaled for a rented GPU.
+# Differs from ../resnet18.yaml only in the compute-shaped knobs:
+# batch 16 -> 64, workers 2 -> 8, epochs 25 -> 40, mixed precision on.
+#
+# Learning rate is deliberately raised 3e-4 -> 6e-4 to partly compensate
+# for the 4x larger batch (fewer, less noisy gradient steps per epoch).
+# The rest -- augmentation, class weighting, seed, split -- is held fixed
+# so results stay comparable to the CPU runs.
+run_name: resnet18_gpu
+model: resnet18
+model_kwargs:
+  pretrained: true
+  freeze_backbone: false
+batch_size: 64
+epochs: 40
+lr: 0.0006
+weight_decay: 0.0001
+optimizer: adamw
+train_augment: true
+spec_augment: true
+noise_augment_p: 0.3
+class_weighted_loss: true
+seed: 42
+patience: 8
+num_workers: 8
+amp: auto

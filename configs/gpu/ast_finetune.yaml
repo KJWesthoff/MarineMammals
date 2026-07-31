@@ -1,0 +1,32 @@
+# Full AST fine-tuning, scaled for a rented GPU (>=24GB: RTX 4090, L40S,
+# A100, ...). Contrast with ../ast_finetune.yaml, which is deliberately
+# scoped down (batch 2, 25% subset, 3 epochs) so it completes on CPU.
+#
+#   python -m watkins.train --config configs/gpu/ast_finetune.yaml
+#
+# This is the run the whole "rent a GPU" exercise exists for: ~86M
+# parameters unfrozen over the full 15k-clip dataset. Expect roughly an
+# hour on a 4090 at bf16.
+#
+# If you hit CUDA OOM, batch_size is the knob -- AST's ~1212-token
+# sequence (1024x128 input, 16x16 patches at stride 10) makes attention
+# memory the binding constraint, not parameter count. Halve it to 8, and
+# to 4 on a 16GB card.
+run_name: ast_finetune_gpu
+model: ast
+model_kwargs:
+  freeze_backbone: false
+batch_size: 16
+epochs: 20
+subset_frac: 1.0
+lr: 0.00001
+weight_decay: 0.00001
+optimizer: adamw
+train_augment: true
+spec_augment: false
+noise_augment_p: 0.2
+class_weighted_loss: true
+seed: 42
+patience: 5
+num_workers: 8
+amp: auto

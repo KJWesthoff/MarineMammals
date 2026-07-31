@@ -41,6 +41,33 @@ def get_device(prefer_cuda: bool = True) -> torch.device:
     return torch.device("cpu")
 
 
+def autocast_dtype(device: torch.device, mode: str | bool = "auto") -> torch.dtype | None:
+    """Pick a mixed-precision dtype for `torch.autocast`, or None to disable.
+
+    Returns None on CPU: this project's CPU path is the documented default
+    on the development machine, and CPU autocast is not reliably a win for
+    these model shapes -- so "auto" means "speed up GPU runs, change
+    nothing about CPU runs".
+
+    On CUDA, prefers bfloat16 where the hardware supports it (Ampere and
+    newer). bf16 has the same exponent range as fp32, so it needs no loss
+    scaling and can't silently produce inf/NaN gradients the way fp16 can.
+    Older cards (e.g. a T4, which you'll get on free Colab) fall back to
+    fp16, which train.py pairs with a GradScaler.
+
+    `mode` accepts "auto" (default), or True/False to force it on/off --
+    exposed through configs as the `amp` key.
+    """
+    if mode is False or mode == "off":
+        return None
+    if device.type != "cuda":
+        # "auto" declines on CPU; an explicit True still opts in.
+        return torch.bfloat16 if mode is True else None
+    if torch.cuda.is_bf16_supported():
+        return torch.bfloat16
+    return torch.float16
+
+
 def count_parameters(model: torch.nn.Module, trainable_only: bool = False) -> int:
     if trainable_only:
         return sum(p.numel() for p in model.parameters() if p.requires_grad)

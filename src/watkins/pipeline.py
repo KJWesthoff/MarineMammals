@@ -47,7 +47,7 @@ def build_transforms(input_kind: str, train_augment: bool = True,
 def build_dataloaders(split: Split, input_kind: str, batch_size: int = 32,
                        num_workers: int = 0, train_augment: bool = True,
                        noise_augment_p: float = 0.3, spec_augment: bool = True,
-                       drop_last_train: bool = True):
+                       drop_last_train: bool = True, pin_memory: bool = False):
     """`drop_last_train=True` (the default) is the right choice for normal
     multi-epoch training: dropping a partial final batch each epoch is
     harmless since shuffling means a different few samples are dropped
@@ -55,6 +55,14 @@ def build_dataloaders(split: Split, input_kind: str, batch_size: int = 32,
     *single-pass* use of the train loader (e.g. one-time frozen-backbone
     embedding extraction in ast_model.extract_embeddings) -- there, a
     dropped partial batch means those samples are never used at all.
+
+    `pin_memory=True` (callers pass this when training on CUDA) allocates
+    batches in page-locked memory so the host->device copy can overlap
+    compute. It costs a little host RAM and does nothing on CPU, so it
+    defaults off. Worker processes are kept alive between epochs whenever
+    `num_workers > 0`: feature extraction here is per-sample STFT work, and
+    respawning workers every epoch is pure overhead once the dataset is
+    large enough to matter.
     """
     train_t, eval_t = build_transforms(
         input_kind, train_augment=train_augment,
@@ -64,7 +72,8 @@ def build_dataloaders(split: Split, input_kind: str, batch_size: int = 32,
     val_ds = WatkinsDataset(split.val, transform=eval_t, random_crop=False)
     test_ds = WatkinsDataset(split.test, transform=eval_t, random_crop=False)
 
-    common = dict(num_workers=num_workers, collate_fn=collate_with_clips)
+    common = dict(num_workers=num_workers, collate_fn=collate_with_clips,
+                   pin_memory=pin_memory, persistent_workers=num_workers > 0)
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=drop_last_train, **common)
     val_dl = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **common)
     test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=False, **common)
