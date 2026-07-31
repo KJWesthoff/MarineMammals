@@ -9,11 +9,21 @@ next" to "significant additional project":
 
 ## Close to what's already built
 
-- **Full AST fine-tuning at scale.** `configs/ast_finetune.yaml` is
-  wired up but deliberately scoped down for CPU. On a real GPU (a free
-  Colab/Kaggle T4 is enough for AST-base), unfreeze the whole backbone,
-  use the full dataset, and compare against the linear-probe numbers in
-  notebook 04.
+- ~~**Full AST fine-tuning at scale.**~~ **Done** -- see the results table
+  in the README and [`runpod_run.md`](runpod_run.md).
+  `configs/gpu/ast_finetune.yaml` on a rented RTX 4090 gives 0.576 accuracy
+  / 0.325 macro-F1, against 0.507 / 0.273 for the linear probe.
+- **Close the fine-tune's overfitting gap.** This is now the most valuable
+  next experiment, and the results above are the reason. The fine-tune
+  early-stops around epoch 9 with train macro-F1 above 0.95 while validation
+  sits near 0.35, and validation loss rises monotonically from epoch 3 --
+  86M parameters against ~9,400 training clips. Untried levers, cheapest
+  first: turn on `spec_augment` (the GPU config has it off), raise
+  `weight_decay` well above 1e-5, add LR warmup and cosine decay, freeze the
+  lower transformer blocks so only the upper layers adapt, and try
+  mixup/manifold-mixup over spectrograms. Each is a config change plus at
+  most a few lines in `train.py`, and each costs ~15 minutes of GPU time to
+  evaluate.
 - **Trim AST's input length.** The pretrained checkpoint expects
   ~10.24s inputs; our clips are 3.0s, so roughly 70% of every input is
   zero-padding, wasting positional embedding range. Reduce

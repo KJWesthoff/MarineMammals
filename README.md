@@ -275,11 +275,43 @@ code changes are needed either way.
 
 ## Results
 
-Headline numbers from this project's own training runs (full dataset,
-tape-grouped split) are summarized in
-[`results/SUMMARY.md`](results/SUMMARY.md) once you've run the full
-configs -- see notebook 05 for the live, code-generated version of the
-same comparison.
+All five `configs/gpu/` models, trained on the **full dataset** with the
+honest tape-grouped split on a rented RTX 4090. Notebook 05 generates the
+live version of this comparison from `results/metrics/`.
+
+| Model | Params | Test accuracy | Test macro-F1 |
+|---|---|---|---|
+| `baseline_cnn` (from scratch) | 402,678 | 0.446 | 0.245 |
+| `resnet18` (ImageNet) | 11,204,214 | 0.485 | 0.250 |
+| `efficientnet_b0` (ImageNet) | 4,076,722 | 0.503 | 0.303 |
+| `ast_linear_probe` (AudioSet, frozen) | 86,230,326 (43,062 trained) | 0.507 | 0.273 |
+| `ast_finetune` (AudioSet, all unfrozen) | 86,230,326 | 0.576 | 0.325 |
+
+Read macro-F1, not accuracy. With 54 species spanning three orders of
+magnitude in representation, accuracy is largely a measure of how well a
+model does on killer whale and sperm whale; macro-F1 weights every species
+equally and is the harder, more honest number. The two diverge informatively:
+ResNet-18 buys +0.039 accuracy over the from-scratch CNN but only +0.005
+macro-F1 -- ImageNet transfer helping the head classes and barely touching
+the tail -- while EfficientNet-B0 beats it on macro-F1 (0.303 vs 0.250)
+despite being the smaller model.
+
+The two AST rows are the most interesting comparison, and the one notebook 04
+is built around. The **linear probe** trains only a 43k-parameter head on a
+frozen backbone and still matches a fully fine-tuned EfficientNet-B0 -- that
+is AudioSet pretraining transferring to underwater bioacoustics with no
+adaptation at all, for the cost of a single forward pass over the dataset.
+**Full fine-tuning** then adds a further +0.069 accuracy and +0.052 macro-F1,
+paid for with backprop through all 86M parameters.
+
+None of these are tuned results. The fine-tune early-stops after ~9 epochs
+with train macro-F1 above 0.95 while validation plateaus near 0.35: 86M
+parameters against ~9,400 training clips overfits quickly, and
+`docs/next_steps.md` lists the obvious levers. Treat the table as a
+reproducible baseline, not a ceiling.
+
+See [`docs/runpod_run.md`](docs/runpod_run.md) for how these were produced
+(~2 hours on one 4090, well under $1).
 
 ## Citations
 
