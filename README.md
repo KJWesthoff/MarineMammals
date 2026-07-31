@@ -199,7 +199,7 @@ re-derivable from the public Hugging Face source, so rebuilding it on the
 remote box is faster than copying it. On a fresh pod:
 
 ```bash
-git clone <your-fork> && cd ShipsEAR
+git clone <your-fork> && cd MarineMammals
 pip install -r requirements-gpu.txt        # NOT requirements.txt -- see below
 pip install -e . --no-deps
 python -m watkins.prepare_data             # ~10-15 min
@@ -234,7 +234,7 @@ files work locally (as above) and on Colab with no separate "Colab
 version" to keep in sync. One-time setup:
 
 1. Upload `src/`, `configs/`, `pyproject.toml`, and `requirements.txt` to
-   `My Drive/ShipsEAR/` (skip the multi-GB `Watkins/` and `results/`
+   `My Drive/MarineMammals/` (skip the multi-GB `Watkins/` and `results/`
    folders -- notebooks handle both automatically, see below).
 2. Open a notebook in Colab (**Runtime > Change runtime type > GPU**
    first) and run the first cell.
@@ -258,7 +258,7 @@ if set, falling back to `<repo_root>/Watkins/watkins_16k` and
   of access pattern Drive's network filesystem is slow at. Expect a
   one-time ~10-15 minute materialization per fresh Colab runtime.
 - **Results** (checkpoints, logs, metrics, figures) get written to
-  `My Drive/ShipsEAR/results/`, so a multi-hour training run's output
+  `My Drive/MarineMammals/results/`, so a multi-hour training run's output
   survives a runtime disconnect -- infrequent, small writes, exactly what
   Drive is fine at.
 
