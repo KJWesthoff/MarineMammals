@@ -82,6 +82,28 @@ def _build_optimizer(cfg: dict, params):
     raise ValueError(f"Unknown optimizer: {cfg['optimizer']!r}")
 
 
+def _macro_f1(labels, preds) -> float:
+    """Macro-F1 averaged over the classes present in `labels` (ground truth).
+
+    The explicit `labels=` matters. scikit-learn's default averages over the
+    *union* of true and predicted classes, so any species the model predicts
+    that doesn't occur in this split enters the mean as a zero. That makes the
+    denominator vary with the model's behaviour -- across this project's five
+    GPU configs it ranged from 44 to 48 classes on the same test set -- which
+    both depresses the score and makes it non-comparable between models,
+    penalizing whichever model predicts a wider spread of labels.
+
+    Averaging over the classes actually present fixes the denominator per
+    split and matches `watkins.evaluate`, so the macro-F1 printed during
+    training and the one in `results/metrics/*_eval.json` agree for identical
+    predictions. Note ~14 of the 54 species have a single source recording and
+    are train-only, so val/test genuinely contain fewer classes than train.
+    """
+    labels = np.asarray(labels)
+    return float(f1_score(labels, np.asarray(preds), labels=np.unique(labels),
+                           average="macro", zero_division=0))
+
+
 def _run_epoch(model, loader, criterion, device, optimizer=None, amp_dtype=None, scaler=None):
     train_mode = optimizer is not None
     model.train(train_mode)
@@ -111,7 +133,7 @@ def _run_epoch(model, loader, criterion, device, optimizer=None, amp_dtype=None,
     preds = torch.cat(all_preds).numpy()
     labels = torch.cat(all_labels).numpy()
     acc = float((preds == labels).mean())
-    macro_f1 = float(f1_score(labels, preds, average="macro", zero_division=0))
+    macro_f1 = _macro_f1(labels, preds)
     return loss_meter.avg, acc, macro_f1
 
 
@@ -211,14 +233,14 @@ def _train_ast_linear_probe(cfg: dict, model, split, device) -> dict:
         loss.backward()
         optimizer.step()
         train_acc = (logits.argmax(1) == train_labels).float().mean().item()
-        train_f1 = f1_score(train_labels.cpu(), logits.argmax(1).cpu(), average="macro", zero_division=0)
+        train_f1 = _macro_f1(train_labels.cpu(), logits.argmax(1).cpu())
 
         head.eval()
         with torch.no_grad():
             val_logits = head(val_feats)
             val_loss = criterion(val_logits, val_labels).item()
             val_acc = (val_logits.argmax(1) == val_labels).float().mean().item()
-            val_f1 = f1_score(val_labels.cpu(), val_logits.argmax(1).cpu(), average="macro", zero_division=0)
+            val_f1 = _macro_f1(val_labels.cpu(), val_logits.argmax(1).cpu())
 
         log_rows.append(dict(epoch=epoch, train_loss=loss.item(), train_acc=train_acc, train_f1=train_f1,
                               val_loss=val_loss, val_acc=val_acc, val_f1=val_f1, seconds=0.0))
@@ -237,7 +259,7 @@ def _train_ast_linear_probe(cfg: dict, model, split, device) -> dict:
     with torch.no_grad():
         test_logits = head(test_feats)
         test_acc = (test_logits.argmax(1) == test_labels).float().mean().item()
-        test_f1 = f1_score(test_labels.cpu(), test_logits.argmax(1).cpu(), average="macro", zero_division=0)
+        test_f1 = _macro_f1(test_labels.cpu(), test_logits.argmax(1).cpu())
     print(f"[{cfg['run_name']}] TEST acc={test_acc:.3f} macro_f1={test_f1:.3f}")
 
     # splice trained head back into the full model for a uniform checkpoint format

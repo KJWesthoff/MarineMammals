@@ -13,14 +13,15 @@ next" to "significant additional project":
   in the README and [`runpod_run.md`](runpod_run.md).
   `configs/gpu/ast_finetune.yaml` on a rented RTX 4090 gives 0.576 accuracy
   / 0.358 macro-F1, against 0.507 / 0.308 for the linear probe.
-- **Give `train.py` a fixed macro-F1 denominator.** Its per-epoch
-  `f1_score(..., average="macro")` has no `labels=`, so it averages over the
-  union of true and predicted classes -- a denominator that varies by model
-  (44 to 48 across the five runs) and makes the printed numbers
-  non-comparable between models. Passing `labels=CLASS_IDS`, or the set
-  present in the split, fixes it. Note this changes the value early stopping
-  monitors, so it will slightly alter training trajectories: worth doing, but
-  it invalidates direct comparison against the logs in `results/logs/`.
+- ~~**Give `train.py` a fixed macro-F1 denominator.**~~ **Done** --
+  `train.py._macro_f1` now pins the denominator to the classes present in the
+  split, matching `watkins.evaluate`. See the README for why it mattered.
+  One consequence is still outstanding: **the five GPU runs were trained
+  before this fix**, so their early stopping and best-checkpoint selection
+  used the old, model-dependent val macro-F1. The test metrics in
+  `results/metrics/` are unaffected (they always came from `evaluate.py`),
+  but a re-run would select slightly different epochs and is worth doing next
+  time the batch runs -- about $0.85 of GPU time.
 - **Close the fine-tune's overfitting gap.** This is now the most valuable
   next experiment, and the results above are the reason. The fine-tune
   early-stops around epoch 9 with train macro-F1 above 0.95 while validation

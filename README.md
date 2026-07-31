@@ -290,9 +290,9 @@ live version of this comparison from `results/metrics/`.
 Macro-F1 is averaged over the **40 species present in the test set** (of 54
 total -- 14 have a single source recording and are train-only by
 construction). These are the numbers in `results/metrics/*_eval.json` and in
-notebook 05. Note that `train.py`'s per-epoch printout reports a *lower*
-macro-F1 for the same predictions; see [the caveat
-below](#a-caveat-on-trainpys-macro-f1).
+notebook 05, and `train.py` now prints the same value for the same
+predictions -- see [the note on the
+denominator](#why-the-macro-f1-denominator-is-pinned).
 
 Read macro-F1, not accuracy. With 54 species spanning three orders of
 magnitude in representation, accuracy is largely a measure of how well a
@@ -316,24 +316,29 @@ bioacoustics with no adaptation at all, for the cost of a single forward pass
 over the dataset. **Full fine-tuning** then adds +0.069 accuracy and +0.050
 macro-F1, paid for with backprop through all 86M parameters.
 
-### A caveat on `train.py`'s macro-F1
+### Why the macro-F1 denominator is pinned
 
-The macro-F1 that `train.py` prints per epoch is computed with
-`f1_score(..., average="macro")` and no explicit `labels=`, so scikit-learn
-averages over the *union of true and predicted* classes. Any species the
-model predicts but which never appears in the test set enters the average as
-a zero.
+Worth knowing if you compare against other bioacoustics results, because it
+is an easy mistake to make and it silently changes the ranking.
 
-That denominator therefore **varies by model** -- 44 classes for the AST
-fine-tune, 48 for the baseline CNN -- which makes those printed numbers not
-directly comparable across models, and systematically harsher on models that
-make more varied predictions. It is why `train.py` reports 0.326 for the AST
-fine-tune where `evaluate.py` reports 0.358 on identical predictions.
+scikit-learn's `f1_score(..., average="macro")` with no explicit `labels=`
+averages over the *union of true and predicted* classes. On a long-tailed
+problem like this one, any species the model predicts that doesn't occur in
+the split enters the average as a zero -- so the denominator depends on the
+model's behaviour rather than on the data. Across these five models it varied
+from 44 to 48 classes on one fixed test set, depressing every score and
+penalizing most the models that predicted a wider spread of labels.
 
-Use the `evaluate.py` / `results/metrics/` numbers (fixed 40-class
-denominator) for any comparison. The training-time value is still perfectly
-serviceable for its actual job -- early stopping and best-checkpoint
-selection within a single run -- since the denominator is stable there.
+That is not a stable basis for comparison. `watkins.train._macro_f1` and
+`watkins.evaluate` both pin the denominator to the classes actually present
+in the split, so training-time and evaluation-time macro-F1 now agree exactly
+for identical predictions.
+
+The effect is not merely cosmetic: under the unpinned denominator the AST
+fine-tune appeared to beat EfficientNet-B0 by 0.022 macro-F1, where in fact
+the two are tied. The per-epoch logs in `results/logs/` predate this fix, so
+their `train_f1`/`val_f1` columns use the old denominator; the test metrics
+in `results/metrics/` were always computed correctly and are unaffected.
 
 None of these are tuned results. The fine-tune early-stops after ~9 epochs
 with train macro-F1 above 0.95 while validation plateaus near 0.35: 86M
