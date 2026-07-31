@@ -158,6 +158,34 @@ That the measured rate matches the synthetic probe means the 8 dataloader
 workers keep up and the run is GPU-bound, not bottlenecked on CPU-side
 spectrogram extraction.
 
+## Results from the first run
+
+Early stopped at **epoch 9** of 20 (patience 5 on validation macro-F1), best
+validation F1 at epoch 4. Total training time ~14 minutes.
+
+| Metric | Value |
+|---|---|
+| Test accuracy | 0.576 |
+| Test macro-F1 | 0.325 |
+| Best val macro-F1 | 0.356 (epoch 4) |
+
+The training curve (`results/logs/ast_finetune_gpu.csv`) shows textbook
+overfitting on a small, long-tailed dataset: train macro-F1 reaches 0.95 by
+epoch 4 while validation F1 plateaus around 0.30-0.35, and validation loss
+climbs monotonically from 2.50 (epoch 3) to 2.98 (epoch 9). 86M parameters
+against ~9,400 training clips is a lot of capacity; early stopping is doing
+real work here.
+
+The accuracy/macro-F1 gap (0.576 vs 0.325) is the long tail, not a bug:
+accuracy is dominated by well-represented species (killer whale alone has
+2,647 clips) while macro-F1 weights all 54 species equally.
+
+Worth trying next, roughly in order of expected value: stronger
+regularisation (`spec_augment: true`, higher `weight_decay`), a lower LR with
+a warmup/decay schedule, freezing the lower transformer blocks, and trimming
+AST's `max_length` from 1024 frames -- our clips are 3.0s, so ~70% of every
+input is zero-padding.
+
 ## Gotchas worth remembering
 
 - **The RunPod SSH proxy silently corrupts long command lines.** It wraps at
@@ -175,6 +203,13 @@ spectrogram extraction.
   missing extras.
 - **The pod bills for wall-clock uptime, not GPU work.** Training finishing
   does not stop the meter. Terminate it explicitly.
+- **RunPod injects a live `RUNPOD_API_KEY` into the pod's environment**, and
+  `runpodctl` there is pre-authenticated -- which is how a pod can terminate
+  itself with `runpodctl remove pod $RUNPOD_POD_ID`, no local API key needed.
+  The flip side: never echo that variable. `${RUNPOD_API_KEY:-unset}` prints
+  the *value* when the variable is set (`:-` substitutes only when unset), so
+  it leaks the key into logs and terminal scrollback. Use
+  `${RUNPOD_API_KEY:+set}` alone, or `[ -n "$X" ] && echo set`.
 
 ## Cost
 
