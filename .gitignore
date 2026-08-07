@@ -25,6 +25,12 @@ notebooks/local/
 # here instead of dirtying the tracked results/ tree.
 results-local/
 
+# Notebook demo output (5 epochs, 30% subset) is a smoke test that the code
+# path runs, not a result -- notebook 05 deliberately excludes `*_demo` from
+# its comparison, and nothing else reads these files. Keeping them tracked
+# only meant every demo re-run dirtied the repo.
+results/**/*_demo*
+
 # Trained checkpoints can be large; keep metrics/figures/logs (small,
 # useful for review) but not raw weights, by default. Comment this out
 # if you want to version checkpoints too.
