@@ -36,9 +36,15 @@ lesson with theory, runnable code, and exercises:
 | 01 | [`signal_processing_fundamentals`](notebooks/01_signal_processing_fundamentals.ipynb) | Waveform -> spectrogram: STFT, window/hop trade-offs, mel vs. linear frequency axis (LOFARgrams); then two classic passive-sonar analysis techniques -- DEMON (reading a click-repetition rate off an echolocating species) and matched filtering (template-matching a known call shape). |
 | 02 | [`baseline_cnn`](notebooks/02_baseline_cnn.ipynb) | A from-scratch CNN and class-weighted loss for a 54-way, heavily imbalanced problem. |
 | 03 | [`transfer_learning_cnns`](notebooks/03_transfer_learning_cnns.ipynb) | ResNet-18 and EfficientNet-B0 fine-tuned from ImageNet weights; frozen-backbone vs. fine-tuned comparisons. |
-| 04 | [`audio_spectrogram_transformer`](notebooks/04_audio_spectrogram_transformer.ipynb) | AST (ViT-style self-attention over spectrogram patches), pretrained on AudioSet; linear probing vs. full fine-tuning, and why this project defaults to the former on this hardware. |
+| 04 | [`audio_spectrogram_transformer`](notebooks/04_audio_spectrogram_transformer.ipynb) | AST (ViT-style self-attention over spectrogram patches), pretrained on AudioSet; linear probing vs. full fine-tuning -- why the CPU default is the probe, and what the full fine-tune actually bought once it was run on a rented GPU. |
 | 05 | [`model_comparison`](notebooks/05_model_comparison.ipynb) | All four architectures compared head-to-head: accuracy, macro-F1, per-class performance on the best-represented species, and parameter efficiency. |
 | 06 | [`robustness_to_noise`](notebooks/06_robustness_to_noise.ipynb) | Accuracy vs. SNR curves under synthetic white/pink noise injection -- a proxy for range/sea-state degradation a real passive acoustic monitoring system has to handle. |
+
+Notebooks 05 and 06 read the committed GPU metrics, so they render the
+real five-model comparison and SNR curves on a fresh clone before you've
+trained anything -- see [Working in the
+notebooks](#working-in-the-notebooks) for what each lesson runs under the
+hood and how that relates to the published results.
 
 See [`docs/next_steps.md`](docs/next_steps.md) for extension ideas once
 you've been through all seven (raw-waveform models, self-supervised
@@ -79,30 +85,57 @@ Clips are split into train/val/test by grouping on original recording
 through a single recording -- see `watkins/data.py` for the
 implementation.
 
-## Hardware notes: why everything here runs on CPU
+## Hardware notes: CPU for development, a rented GPU for the results
 
-This machine has an NVIDIA Quadro P520 (2GB VRAM), but it's a
+Two hardware stories run side by side in this repo, and it's worth being
+explicit about which is which:
+
+- **The [results](#results) below were produced entirely on a GPU.** All
+  five `configs/gpu/` runs were trained on a single rented RTX 4090
+  (~2 hours total, well under $1) -- including the full AST fine-tune,
+  which is the best model in the table. Those are the numbers this
+  project reports. See [`docs/runpod_run.md`](docs/runpod_run.md) for
+  exactly how they were produced.
+- **Development happens on CPU**, which is the only reason the default
+  configs in `configs/` are sized the way they are: small batches, capped
+  epochs, and an AST default that avoids backprop through the backbone.
+  Read those configs as "runnable while you're learning", not as the
+  training budget the results came from.
+
+The development machine has an NVIDIA Quadro P520 (2GB VRAM), but it's a
 Pascal-generation GPU (compute capability 6.1) and current PyTorch CUDA
 wheels are built for compute capability >= 7.5 -- `torch.cuda.is_available()`
 returns `True`, but any actual kernel launch fails. Combined with the
-2GB VRAM ceiling (too little for comfortable AST fine-tuning regardless),
-this project targets **CPU** throughout, on an 8-core / 30GB RAM machine.
+2GB VRAM ceiling (too little for AST fine-tuning regardless), the
+local-default path targets **CPU** throughout, on an 8-core / 30GB RAM
+machine.
 
-- The baseline CNN and both CNN transfer-learning models are trainable
-  in a few hours combined at this dataset's scale (~15,000 clips).
-- AST is used primarily via **linear probing**: the pretrained 86M-
-  parameter backbone is frozen and run once to extract 768-dim
-  embeddings (the slow part, dominated by the one-time forward pass
-  cost), after which the tiny classifier head trains in seconds. Full
-  fine-tuning is wired up (`configs/ast_finetune.yaml`) but is genuinely
-  slow on CPU -- see notebook 04 for when it's worth doing on a real GPU
-  instead (a free Colab/Kaggle T4 is plenty).
+- The baseline CNN and both CNN transfer-learning models are trainable on
+  CPU in a few hours combined at this dataset's scale (~15,000 clips).
+- AST's CPU default is **linear probing**: the pretrained 86M-parameter
+  backbone is frozen and run once to extract 768-dim embeddings (the slow
+  part, dominated by the one-time forward pass cost), after which the tiny
+  classifier head trains in seconds. That is a real result in its own
+  right -- 0.507 accuracy in the table below -- not just a stand-in.
+- Full fine-tuning (`configs/ast_finetune.yaml`) is wired up but is
+  genuinely slow on CPU, so the CPU config is scoped down to a 25% subset
+  and 3 epochs as a demo. The published fine-tune is
+  `configs/gpu/ast_finetune.yaml` on the 4090: ~1 hour, and worth
+  +0.069 accuracy over the probe.
 
 If you're running this on different hardware with a supported GPU,
 nothing in `watkins.utils.get_device()` needs to change -- it already
 tries CUDA first and only falls back to CPU if a real kernel launch
 fails. Use `requirements-gpu.txt` and the scaled-up `configs/gpu/`
 variants there; see [Running on a rented GPU](#running-on-a-rented-gpu).
+
+All three kinds of run coexist in `results/` under distinct names: the
+scaled-up GPU runs are `*_gpu`, the notebooks' quick subset demos are
+`*_demo`, and a full CPU-config run keeps the bare config name. Nothing
+overwrites anything else, and notebook 05's comparison table lists the
+full-scale runs (`*_gpu` alongside any bare-named CPU runs you've done)
+while deliberately leaving the `*_demo` runs out, so a 5-epoch/30%-subset
+demo can never be mistaken for a real result.
 
 ## Project layout
 
@@ -129,15 +162,156 @@ src/watkins/                 the library everything else is built on
 configs/                     one YAML per experiment (model + training hyperparameters)
     gpu/                        the same experiments scaled up for a rented GPU
 notebooks/                   the 7-lesson curriculum described above
+    local/                      optional private playground copies (gitignored)
 results/
-    checkpoints/                trained model weights (+ config used to produce them)
+    checkpoints/                trained model weights (+ config used to produce them), not checked in
     logs/                       per-epoch training curves (CSV)
     metrics/                    evaluation reports and robustness sweeps (JSON/CSV)
     figures/                    confusion matrices, robustness plots (PNG)
+results-local/               where the playground copies write instead (gitignored)
+scripts/
+    runpod_setup.sh             staged setup for a rented GPU pod (check/install/data/smoke/train)
+    sync_local_notebooks.py     manages notebooks/local/ + results-local/
 docs/
     class_reference.md          full species list, imbalance table, and metadata notes
     next_steps.md                extension ideas beyond this curriculum
 ```
+
+## How the code works
+
+Everything in `notebooks/` is a thin layer over the `watkins` package in
+`src/`: the notebooks import the same functions the CLI entry points call,
+so a lesson and a `python -m watkins.train` run execute identical code.
+There is no separate "notebook version" of the pipeline -- the optional
+playground copies in `notebooks/local/` are generated copies of these
+same files, not a fork of them.
+
+### Frameworks used
+
+| Framework | What it does here |
+|---|---|
+| **PyTorch** (`torch`) | Everything model-side: tensors, `nn.Module` definitions, `DataLoader`, the training loop, AdamW/SGD, `torch.autocast` + `GradScaler` for mixed precision, checkpoint serialization. |
+| **torchaudio** | All signal processing: `MelSpectrogram` / `Spectrogram` / `AmplitudeToDB` for the feature transforms, `highpass_biquad` / `lowpass_biquad` for DEMON's envelope detector, `functional.resample` in `prepare_data`. |
+| **torchvision** | The two ImageNet CNN backbones (`resnet18`, `efficientnet_b0`) and their pretrained weight enums. |
+| **Hugging Face `transformers`** | AST: `ASTFeatureExtractor` (the pretrained fbank recipe) and `ASTForAudioClassification` (the 86M-parameter AudioSet-pretrained backbone). |
+| **`huggingface_hub` + `pyarrow`** | Dataset acquisition -- fetching the 9 parquet shards and iterating them in batches without loading 10.6GB into RAM. |
+| **`soundfile`** | WAV encode/decode (writing the materialized dataset, reading clips at training time). |
+| **scikit-learn** | Metrics only: `f1_score`, `classification_report`, `confusion_matrix`. No sklearn models. |
+| **NumPy / pandas** | Class-weight computation, robustness-sweep tables and CSV output. |
+| **matplotlib** | Confusion-matrix heatmaps and accuracy-vs-SNR plots. |
+| **PyYAML / tqdm / argparse** | Config loading, progress bars, CLI parsing. |
+
+Deliberately *not* used: no Keras/TensorFlow, no PyTorch Lightning or
+other training-loop framework (the loop in `train.py` is ~80 lines of
+plain PyTorch and is meant to be read), and no `librosa` -- `features.py`
+does its STFT work in torchaudio instead, which keeps feature extraction
+on the same tensors as the model and avoids a numba dependency.
+
+### The pipeline, end to end
+
+```
+Hugging Face parquet shards
+  |  prepare_data.py  -- decode, downmix to mono, resample to 16kHz, cap at 60s
+  v
+Watkins/watkins_16k/{manifest.csv, audio/<class_id>/<record>.wav}
+  |  data.py:load_manifest    -> list[Clip]  (path, label, record_number, tape_id)
+  |  data.py:build_split      -> Split(train, val, test), grouped by tape_id
+  v
+WatkinsDataset  -- reads a wav, crops/pads to a fixed 3.0s (48,000 samples):
+                   random offset when training, center when evaluating
+  |  transform (built in pipeline.py)
+  v
+either  augment.RandomNoiseInjection -> features.LogMelSpectrogram -> augment.SpecAugment
+    or  augment.RandomNoiseInjection -> ast_model.ASTPreprocessor
+  |  DataLoader (collate_with_clips keeps per-sample Clip metadata alongside the batch)
+  v
+model (models/build_model)  ->  logits [B, 54]
+```
+
+**1. Materialization** (`prepare_data.py`). The source dataset ships audio
+as bytes embedded in parquet at 47 different native sample rates. This
+script decodes each clip, downmixes to mono, resamples to a single 16kHz,
+caps stored length at 60s, and writes one WAV per clip plus a
+`manifest.csv`. It's idempotent -- already-written clips are skipped, so
+an interrupted download is resumed by re-running it.
+
+**2. Splitting** (`data.py`). `build_split` groups each species' clips by
+`tape_id` (the first 6 characters of the record number, identifying the
+original recording) and assigns whole tapes to train/val/test, so no
+recording ever straddles a split boundary. `_assign_tape_groups` handles
+the degenerate cases explicitly -- one tape means train-only, two means
+train+test, three or more reserves the smallest tape for each split and
+then greedily fills whichever split is furthest below its target share. A
+`clip_random` mode implements the naive (leaky) alternative for the
+leakage-quantification exercise.
+
+**3. Features** (`features.py`, `augment.py`, `models/ast_model.py`). Two
+input representations exist, and each model declares which one it needs:
+`LogMelSpectrogram` (64 mel bins, 25ms window / 10ms hop, per-instance
+normalized) for the CNNs, and `ASTPreprocessor` for AST -- which delegates
+to the pretrained `ASTFeatureExtractor` rather than reusing the project's
+own mel transform, since AST's normalization statistics and fbank recipe
+are part of its pretrained weights. Augmentation is waveform-domain
+(`RandomNoiseInjection`, mixing white/pink noise at a sampled SNR) plus
+spectrogram-domain (`SpecAugment` time/frequency masking), chained with a
+small `Compose`.
+
+**4. The `input_kind` contract** (`models/__init__.py`). `build_model(name,
+num_classes)` returns `(model, input_kind)` where `input_kind` is
+`"logmel"` or `"ast"`. That string is what binds a model to its feature
+pipeline: `pipeline.build_transforms` switches on it, and it's stored in
+every checkpoint so `evaluate.py` and `robustness.py` rebuild the exact
+transform the model was trained with. `pipeline.py` exists specifically so
+that training, evaluation and robustness sweeps construct their transforms
+through one code path -- a train/eval feature mismatch is otherwise a very
+easy bug to introduce and a very hard one to notice.
+
+The four models are: a from-scratch `BaselineCNN` (four conv/BN/ReLU/pool
+blocks, global average pool, linear head); ResNet-18 and EfficientNet-B0,
+both wrapped in `SpectrogramBackbone`, which repeats the single
+spectrogram channel three times so ImageNet's 3-channel first conv can be
+reused intact rather than surgically resized; and `ASTClassifier`, which
+wraps `ASTForAudioClassification` and optionally freezes everything except
+the head.
+
+**5. Training** (`train.py`). Config-driven: a YAML file is merged over
+`DEFAULT_CONFIG`, then CLI flags override that. The loop is standard --
+class-weighted `CrossEntropyLoss` (inverse-frequency weights, which matters
+a lot here), AdamW, per-epoch validation, `EarlyStopping` on validation
+macro-F1, best-state snapshot restored before the test pass, per-epoch CSV
+log. Mixed precision is decided by `utils.autocast_dtype`: bfloat16 on
+Ampere+, float16 plus a `GradScaler` on older cards, off on CPU.
+
+There are two training paths. `_train_generic` is the normal one. The AST
+linear probe takes `_train_ast_linear_probe` instead: because the backbone
+is frozen, its output never changes across epochs, so the backbone is run
+over the data *once* (`extract_embeddings`) and the 768-dim vectors are
+cached in memory; "training" is then a few hundred full-batch gradient
+steps on a 43k-parameter head, which takes seconds. The trained head's
+`state_dict` is spliced back into `model.model.classifier` before saving --
+`LinearProbeHead` mirrors the HF head module-for-module precisely so this
+works -- so the checkpoint is structurally identical to a normally trained
+one and downstream code needs no special case.
+
+**6. Checkpoints and downstream analysis.** `train.py` saves a dict of
+`{model_name, model_kwargs, input_kind, state_dict, config}` -- enough for
+`evaluate.load_checkpoint` to reconstruct the model and its data pipeline
+from the file alone. `evaluate.py` produces the per-class report, confusion
+matrix and `results/metrics/<run>_eval.json`; `robustness.py` re-runs the
+same checkpoint over the test set at a sweep of injected-noise SNRs
+(noise added to the *waveform*, before feature extraction, matching how
+real degradation enters the signal chain) and writes the accuracy-vs-SNR
+curve; `summarize.py` collates everything in `results/metrics/` into a
+markdown table.
+
+**7. Path and device handling** (`utils.py`). `data_root()` and
+`results_root()` resolve to repo-relative defaults but honor
+`WATKINS_DATA_ROOT` / `WATKINS_RESULTS_ROOT`, which is what lets the same
+code put data on fast ephemeral disk and results on durable storage
+(Colab/RunPod). `get_device()` doesn't trust `torch.cuda.is_available()` --
+it actually launches a trivial kernel and falls back to CPU if that
+raises, because on this project's development GPU the availability check
+returns `True` and every real kernel then fails.
 
 ## Setup
 
@@ -184,6 +358,113 @@ Every config in `configs/` accepts `--epochs`, `--subset-frac`,
 `--batch-size`, and `--run-name` overrides for quick experiments without
 editing the YAML (e.g. `--subset-frac 0.2 --epochs 3` for a fast sanity
 check before committing to a full run).
+
+## Working in the notebooks
+
+### What a notebook run actually does
+
+Every training cell calls `watkins.train.train_run` -- the same function
+`python -m watkins.train --config ...` calls, on the same configs in
+`configs/`. Nothing about the pipeline changes because you're in a
+notebook. What changes is the **budget**: the in-notebook runs override
+`epochs` and `subset_frac` so a cell returns in minutes on CPU rather
+than hours.
+
+| Notebook | Runs it trains | Scale vs. the config |
+|---|---|---|
+| 02 | `baseline_cnn_demo`, `baseline_cnn_leak_check` | 5 epochs, 30% subset |
+| 03 | `resnet18_demo`, `efficientnet_b0_demo`, `resnet18_frozen_demo` | 5 epochs, 30% subset |
+| 04 | `ast_linear_probe_demo` | 30% subset |
+| 05 | nothing -- reads `results/metrics/` only | -- |
+| 06 | robustness sweeps, only for runs with no cached sweep | -- |
+
+Read every `*_demo` number as a smoke test that the code path works, not
+as a result. A 5-epoch run on 30% of the data is not a smaller version of
+the published number; it is a different experiment.
+
+### How the notebooks relate to the GPU results
+
+The [results](#results) were produced on a rented RTX 4090 (see
+[`docs/runpod_run.md`](docs/runpod_run.md)), and **the evidence for them
+is committed to this repo** -- about 1.7MB of it:
+
+```
+results/metrics/*_gpu_eval.json         per-class precision/recall/F1
+results/metrics/*_gpu_robustness.csv    accuracy-vs-SNR sweeps
+results/logs/*_gpu.csv                  per-epoch training curves
+results/figures/*_gpu_*.png             confusion matrices, robustness plots
+```
+
+That is what makes notebooks 05 and 06 useful on a fresh clone: they
+render the real five-model comparison and the real SNR curves **before
+you have trained anything at all**. You are not looking at placeholder
+data waiting to be filled in.
+
+What is *not* committed is `results/checkpoints/*.pt` -- ~820MB, gitignored,
+of which the two AST checkpoints are 330MB each. This costs you less than
+it sounds like, because notebook 06 only needs a checkpoint when a sweep
+isn't already cached, and all five GPU sweeps are cached. It reads the
+CSV and moves on.
+
+Three things keep a CPU notebook session from damaging those numbers:
+
+1. **Names never collide.** Demos write `*_demo`, the GPU runs are
+   `*_gpu`, a full CPU-config run keeps the bare config name. Notebook
+   05's comparison table lists the full-scale runs and deliberately
+   excludes `*_demo`, so a 5-epoch demo can't be mistaken for a result.
+2. **Notebook 06 is cache-first.** If `{run}_robustness.csv` exists it
+   loads it and continues -- it never recomputes over a sweep that's
+   already on disk.
+3. **Sweeps are CPU-guarded.** A sweep is 13 full test-set passes over
+   3,072 clips. `ALLOW_CPU_SWEEP = False` at the top of notebook 06 stops
+   one starting implicitly just because a checkpoint happens to be
+   sitting there.
+
+So you can run all seven notebooks end to end on CPU without overwriting,
+invalidating, or quietly degrading the published GPU results.
+
+### Keeping your own runs out of git
+
+The one thing a notebook session *does* disturb is `git status`. Six demo
+artifacts are checked in -- `results/metrics/{baseline_cnn,resnet18,efficientnet_b0}_demo_eval.json`
+and the matching `results/figures/*_demo_confusion.png` -- so re-running
+lesson 02 or 03 shows up as modified tracked files. (Demo training logs
+are untracked and just appear as new `??` entries.)
+
+If you'd rather experiment without that, `scripts/sync_local_notebooks.py`
+sets up a private playground:
+
+```bash
+python scripts/sync_local_notebooks.py     # populate notebooks/local/
+jupyter lab notebooks/local/
+```
+
+Both `notebooks/local/` and `results-local/` are gitignored, so runs
+launched from a playground copy never touch `git status`. Under the hood:
+
+- The copies are the tracked notebooks with two depth-dependent lines
+  rewritten (they sit one directory deeper) and a marked block injected
+  that points `WATKINS_RESULTS_ROOT` at `results-local/`. Everything else
+  resolves through `repo_root()` in `watkins.utils`, which keys off the
+  package location rather than the notebook's.
+- `results-local/` is **seeded with a copy of the tracked results**, which
+  is the whole trick: notebooks 05 and 06 still read the real GPU metrics
+  and sweeps, while anything you train lands in the copy instead of the
+  checked-in tree.
+- `results-local/checkpoints` is a symlink to `results/checkpoints`
+  rather than a copy -- those files are already gitignored, so they were
+  never a source of git noise, and symlinking avoids duplicating 820MB
+  while letting notebook 06 load the GPU checkpoints.
+
+Useful flags: `--status` (what has diverged), `--promote 03` (copy a
+playground edit back onto the tracked notebook, reversing the rewrites
+and stripping the injected block), `--retrofit` (re-apply the transforms
+to existing copies in place, keeping your edits), `--seed-results`
+(refresh `results-local/` from `results/`). A copy you've edited is never
+overwritten without `--force`.
+
+This is entirely optional. Working directly in `notebooks/` is fine --
+you'll just want `git checkout -- results/` occasionally.
 
 ## Running on a rented GPU
 
@@ -267,11 +548,15 @@ if set, falling back to `<repo_root>/Watkins/watkins_16k` and
   Drive is fine at.
 
 A GPU turns the CPU-bound parts of this project (everything, on the
-hardware described below, but especially `ast_finetune.yaml` and the
-ResNet/EfficientNet configs) into a very different, much faster
-experience -- see `watkins.utils.get_device()`, which already tries CUDA
-first and only falls back to CPU if a real kernel launch fails, so no
-code changes are needed either way.
+development hardware described [above](#hardware-notes-cpu-for-development-a-rented-gpu-for-the-results),
+but especially `ast_finetune.yaml` and the ResNet/EfficientNet configs)
+into a very different, much faster experience -- see
+`watkins.utils.get_device()`, which already tries CUDA first and only
+falls back to CPU if a real kernel launch fails, so no code changes are
+needed either way. Colab is a reasonable place to reproduce the
+`configs/gpu/` runs, with one caveat: a free-tier T4 has 16GB, so
+`configs/gpu/ast_finetune.yaml` needs `batch_size` dropped to 4 (the
+published run used a 24GB RTX 4090 at batch 16).
 
 ## Results
 

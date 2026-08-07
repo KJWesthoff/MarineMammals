@@ -14,6 +14,17 @@ Watkins/
 # Source papers are third-party copyrighted PDFs; keep them local.
 *.pdf
 
+# Private playground copies of the notebooks: run them, leave outputs in,
+# experiment freely without any of it reaching git. Populate/refresh with
+# `python scripts/sync_local_notebooks.py`; the tracked notebooks/*.ipynb
+# stay clean.
+notebooks/local/
+
+# Where those playground copies write their runs. Seeded from results/ so
+# notebooks 05/06 can still read the GPU runs; anything they train lands
+# here instead of dirtying the tracked results/ tree.
+results-local/
+
 # Trained checkpoints can be large; keep metrics/figures/logs (small,
 # useful for review) but not raw weights, by default. Comment this out
 # if you want to version checkpoints too.
