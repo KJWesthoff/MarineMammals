@@ -58,8 +58,12 @@ def build_summary() -> str:
     lines.append(f"## Per-class F1, top {TOP_N_SPECIES} best-represented species in the test set")
     lines.append("")
     if first_metrics is not None:
+        # Drop sklearn's summary rows, not just some of them. When
+        # classification_report gets an explicit `labels=`, it emits "micro avg"
+        # in place of "accuracy" -- and its support is the whole split, so it
+        # sorts to the top of a by-support ranking and steals a species slot.
         support = {name: rep["support"] for name, rep in first_metrics["report"].items()
-                   if name not in ("accuracy", "macro avg", "weighted avg")}
+                   if name != "accuracy" and not name.endswith(" avg")}
         top_species = [n for n, _ in sorted(support.items(), key=lambda kv: -kv[1])[:TOP_N_SPECIES]]
         lines.append("| model | " + " | ".join(top_species) + " |")
         lines.append("|---|" + "---:|" * len(top_species))
