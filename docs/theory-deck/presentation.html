@@ -1130,6 +1130,137 @@
         </div>
       </section>
 
+      <section id="slide-22">
+        <h2 style="font-size:28pt;">The Code: <span class="mono" style="font-size:23pt; color:var(--primary-color);">src/watkins/</span></h2>
+        <div class="content" style="gap:0;">
+
+          <p style="font-size:12pt; margin:2px 0 8px; color:var(--muted-color);">One library, two front doors: the notebooks import the very functions <span class="mono">python -m watkins.train</span> calls. No notebook-only code path.</p>
+
+          <div style="display:grid; grid-template-columns: repeat(13, auto); gap:5px; margin-bottom:9px;">
+            <div class="flow-step">prepare_data</div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step">data</div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step">pipeline <span style="color:var(--muted-color);">(features + augment)</span></div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step">models</div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step" style="border-color:var(--primary-color);">train</div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step">evaluate &middot; robustness</div>
+            <div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="flow-step">summarize</div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:7px;">
+
+            <div class="api-card">
+              <h4>prepare_data.py</h4>
+              <p class="role">Materializes the dataset, once.</p>
+              <ul><li><span class="fn">prepare()</span> &mdash; 9 HF shards &rarr; 16kHz wavs + <span class="fn">manifest.csv</span></li></ul>
+            </div>
+
+            <div class="api-card accent">
+              <h4>data.py</h4>
+              <p class="role">Clips, species, and the splits everything is judged on.</p>
+              <ul>
+                <li><span class="fn">load_manifest()</span> &rarr; <span class="fn">list[Clip]</span></li>
+                <li><span class="fn">get_split()</span> &mdash; <span class="fn">tape_grouped</span>; <span class="fn">clip_random</span> is the leaky one</li>
+                <li><span class="fn">WatkinsDataset</span> &mdash; crop/pad to 3s</li>
+              </ul>
+            </div>
+
+            <div class="api-card accent">
+              <h4>features.py</h4>
+              <p class="role">Waveform &rarr; what a model or an analyst sees.</p>
+              <ul>
+                <li><span class="fn">LogMelSpectrogram</span> &mdash; the model input</li>
+                <li><span class="fn">lofar_gram</span> &middot; <span class="fn">demon_envelope</span> &middot; <span class="fn">demon_spectrum</span></li>
+                <li><span class="fn">matched_filter[_bank]</span> &middot; <span class="fn">detect_peaks</span> &middot; <span class="fn">average_pulse_template</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card">
+              <h4>augment.py</h4>
+              <p class="role">Controlled corruption &mdash; training, and notebook 06.</p>
+              <ul>
+                <li><span class="fn">mix_at_snr()</span> &middot; <span class="fn">white_noise</span> &middot; <span class="fn">pink_noise</span></li>
+                <li><span class="fn">RandomNoiseInjection</span> &middot; <span class="fn">SpecAugment</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card">
+              <h4>pipeline.py</h4>
+              <p class="role">The glue &mdash; the only place transforms get assembled.</p>
+              <ul>
+                <li><span class="fn">build_transforms()</span> &mdash; per <span class="fn">input_kind</span></li>
+                <li><span class="fn">build_dataloaders()</span> &middot; <span class="fn">build_noisy_eval_transform()</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card">
+              <h4>models/</h4>
+              <p class="role">Four architectures, one registry lookup.</p>
+              <ul>
+                <li><span class="fn">build_model(name, num_classes)</span></li>
+                <li><span class="fn">BaselineCNN</span> &middot; <span class="fn">build_resnet18</span> &middot; <span class="fn">build_efficientnet_b0</span></li>
+                <li><span class="fn">ASTClassifier</span> &middot; <span class="fn">extract_embeddings</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card accent">
+              <h4>train.py</h4>
+              <p class="role">One config-driven loop; the CLI is a wrapper on it.</p>
+              <ul>
+                <li><span class="fn">train_run(cfg)</span> &mdash; CLI <em>and</em> notebooks</li>
+                <li><span class="fn">_run_epoch()</span> &middot; <span class="fn">_class_weights()</span> &middot; <span class="fn">_macro_f1()</span></li>
+                <li><span class="fn">_train_ast_linear_probe()</span> &mdash; embed once, fit the head</li>
+              </ul>
+            </div>
+
+            <div class="api-card">
+              <h4>evaluate.py</h4>
+              <p class="role">Per-class truth, not one aggregate number.</p>
+              <ul>
+                <li><span class="fn">evaluate_checkpoint()</span> &mdash; P/R/F1 per species &rarr; JSON</li>
+                <li><span class="fn">plot_confusion_matrix()</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card">
+              <h4>robustness.py</h4>
+              <p class="role">Distance from a real hydrophone.</p>
+              <ul><li><span class="fn">robustness_sweep()</span> &mdash; clean &rarr; &minus;10dB &times; white/pink &rarr; CSV + plot</li></ul>
+            </div>
+
+            <div class="api-card">
+              <h4>summarize.py</h4>
+              <p class="role">Reads metrics back; never re-runs a model.</p>
+              <ul><li><span class="fn">build_summary()</span> &mdash; run JSONs &rarr; the README table</li></ul>
+            </div>
+
+            <div class="api-card">
+              <h4>utils.py</h4>
+              <p class="role">The small shared things.</p>
+              <ul>
+                <li><span class="fn">set_seed</span> &middot; <span class="fn">get_device</span> &middot; <span class="fn">autocast_dtype</span></li>
+                <li><span class="fn">EarlyStopping</span> &middot; <span class="fn">repo_root</span> &middot; <span class="fn">results_root</span></li>
+              </ul>
+            </div>
+
+            <div class="api-card" style="border-color:var(--secondary-color); background:rgba(244,162,97,0.05);">
+              <h4 style="color:var(--secondary-color);">configs/*.yaml</h4>
+              <p class="role">Experiments are data, not code.</p>
+              <ul>
+                <li>One YAML per run: model, optimizer, epochs, <span class="fn">input_kind</span>, split</li>
+                <li><span class="fn">configs/gpu/</span> &mdash; the same five, scaled up</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 
