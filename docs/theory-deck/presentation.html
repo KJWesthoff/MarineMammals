@@ -34,6 +34,7 @@
         <p>The theory behind the exercises &mdash; from raw waveform to species classifier</p>
         <div style="margin-top: 28px; display: flex; gap: 10px;">
           <span class="pill">STFT / LOFAR</span>
+          <span class="pill">Filters &amp; Envelopes</span>
           <span class="pill">DEMON</span>
           <span class="pill">Matched Filter</span>
           <span class="pill amber">CNN / Transformer</span>
@@ -292,21 +293,21 @@
 
             <div class="panel" style="display:flex; flex-direction:column;">
               <div class="panel-label">Mel-scaled &mdash; what the CNNs/AST train on</div>
-              <div style="flex:1; border-radius:4px; overflow:hidden; position:relative;">
+              <div style="height:352px; border-radius:4px; overflow:hidden; position:relative;">
                 <img src="assets/mel_spectrogram.png" alt="real mel-scaled spectrogram of a humpback whale call" style="width:100%; height:100%; object-fit:cover; display:block;">
                 <span style="position:absolute; left:8px; bottom:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">low freq: spread out</span>
                 <span style="position:absolute; left:8px; top:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">high: compressed</span>
               </div>
-              <p class="text-lg" style="margin-top:8px;">Harmonics <strong>warp and bunch together</strong> at higher pitch &mdash; a good prior for speech, debatable for physical tonals.</p>
+              <p style="margin-top:8px; font-size:15pt;">Harmonics <strong>warp and bunch together</strong> at higher pitch &mdash; a good prior for speech, debatable for physical tonals.</p>
             </div>
 
             <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
               <div class="panel-label">Linear frequency &mdash; LOFARgram, zoomed to 0&ndash;4kHz</div>
-              <div style="flex:1; border-radius:4px; overflow:hidden; position:relative;">
+              <div style="height:352px; border-radius:4px; overflow:hidden; position:relative;">
                 <img src="assets/lofar_spectrogram.png" alt="real linear-frequency LOFARgram of the same humpback whale call" style="width:100%; height:100%; object-fit:cover; display:block;">
                 <span style="position:absolute; left:8px; top:6px; font-family:var(--mono-font); font-size:9pt; color:#e8f1f2; text-shadow:0 1px 3px #000;">evenly spaced, every recording</span>
               </div>
-              <p class="text-lg" style="margin-top:8px;">Tonal harmonics stay at a <strong>fixed row</strong> &mdash; easy to track by eye or algorithm, the classical starting point for passive-sonar target classification.</p>
+              <p style="margin-top:8px; font-size:15pt;">Tonal harmonics stay at a <strong>fixed row</strong> &mdash; easy to track by eye or algorithm, the classical starting point for passive-sonar target classification.</p>
             </div>
 
           </div>
@@ -338,10 +339,210 @@
         </div>
       </section>
 
+      <section id="slide-9c">
+        <h2>Per-Instance Normalization</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:12px;">Clips in this archive span a <span class="mono" style="color:var(--secondary-color);">64:1</span> loudness ratio. Without normalizing, a model could &ldquo;solve&rdquo; much of the task by intensity alone. <span class="mono">LogMelSpectrogram</span> z-scores every clip against its own mean and std.</p>
+
+          <div style="display:grid; grid-template-columns: 120px 1fr 1fr; gap:10px 16px;">
+            <div></div>
+            <div class="panel-label" style="text-align:center;">Raw dB &mdash; one absolute scale</div>
+            <div class="panel-label" style="text-align:center;">Z-scored &mdash; one absolute scale</div>
+
+            <div class="row-label">loudest<br><span style="color:var(--muted-color); text-transform:none; letter-spacing:0;">&minus;15.5 dB</span></div>
+            <div class="panel" style="padding:6px;"><img src="assets/norm_raw_loud.png" alt="loudest clip, raw dB, on a shared colour scale: bright" style="width:100%; height:96px; object-fit:cover; display:block; border-radius:3px;"></div>
+            <div class="panel" style="padding:6px;"><img src="assets/norm_z_loud.png" alt="loudest clip, z-scored, on a shared colour scale" style="width:100%; height:96px; object-fit:cover; display:block; border-radius:3px;"></div>
+
+            <div class="row-label">quietest<br><span style="color:var(--muted-color); text-transform:none; letter-spacing:0;">&minus;32.9 dB</span></div>
+            <div class="panel" style="padding:6px;"><img src="assets/norm_raw_quiet.png" alt="quietest clip, raw dB, on the same shared scale: nearly dark" style="width:100%; height:96px; object-fit:cover; display:block; border-radius:3px;"></div>
+            <div class="panel" style="padding:6px;"><img src="assets/norm_z_quiet.png" alt="quietest clip, z-scored: structure now visible" style="width:100%; height:96px; object-fit:cover; display:block; border-radius:3px;"></div>
+          </div>
+
+          <div class="panel" style="margin-top:16px; padding:12px 20px; border-color: var(--secondary-color); display:flex; align-items:center; gap:18px;">
+            <span class="pill amber">the trap</span>
+            <p style="margin:0; font-size:14pt;">Z-scoring is an <strong>affine</strong> map, and every plotting library autoscales each image to its own min/max by default. Do that and the raw and normalized panels come out <strong>pixel-for-pixel identical</strong> &mdash; which reads as &ldquo;normalization did nothing&rdquo; when it actually means the plot threw away the only thing that changed. Normalization never alters the shape <em>within</em> one spectrogram; it moves where that shape sits on an absolute scale. Pin <span class="mono">vmin</span>/<span class="mono">vmax</span> or you cannot see it.</p>
+          </div>
+        </div>
+      </section>
+
       <section id="divider-3" class="section-divider" data-state="is-section-divider">
         <div class="divider-index">Part 3 &middot; Notebook 01</div>
-        <h1>Classical Passive-Sonar<br>Techniques</h1>
-        <p>DEMON &amp; matched filtering, applied to biosonar</p>
+        <h1>Signal Processing<br>for Biosonar</h1>
+        <p>Filters &amp; envelopes &middot; DEMON &middot; matched filtering &mdash; and matching the tool to the signal</p>
+      </section>
+
+      <section id="slide-10a">
+        <h2>Three Primitives, Endlessly Recombined</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:18px;">Everything in this section &mdash; DEMON, matched filtering, the detector that reads a click rate &mdash; is these three operations composed. Worth being precise about each before stacking them.</p>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; flex:1;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">1 &middot; Filter</div>
+              <svg viewBox="0 0 160 62" style="width:100%; margin:10px 0 6px;">
+                <line x1="8" y1="52" x2="152" y2="52" stroke="#1c3644" stroke-width="1"/>
+                <path d="M8,14 L86,14 Q100,14 104,52 L152,52" fill="none" stroke="#2dd4bf" stroke-width="2.5"/>
+                <text x="8" y="61" fill="#7a97a3" font-size="7" font-family="monospace">frequency &rarr;</text>
+              </svg>
+              <p class="text-lg" style="margin:0;"><strong>Frequency-selective gain.</strong> Keep some frequencies, attenuate the rest. Nothing more &mdash; it doesn't know what a click is, only which bands to pass.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">2 &middot; Envelope</div>
+              <svg viewBox="0 0 160 62" style="width:100%; margin:10px 0 6px;">
+                <path d="M8,32 L14,20 L18,44 L23,17 L28,47 L33,25 L38,39 L44,31 L52,32 L64,32 L70,22 L74,42 L79,18 L84,46 L89,26 L94,38 L100,32 L112,32 L118,24 L122,40 L127,20 L132,44 L137,28 L142,36 L152,32"
+                      fill="none" stroke="#2dd4bf" stroke-width="1.2" opacity="0.5"/>
+                <path d="M8,32 Q23,10 38,32 Q50,32 64,32 Q79,11 94,32 Q106,32 112,32 Q127,13 142,32 L152,32"
+                      fill="none" stroke="#f4a261" stroke-width="2.5"/>
+              </svg>
+              <p class="text-lg" style="margin:0;"><strong>The amplitude outline.</strong> Throws away the fast carrier, keeps how loud the signal is over time. A click train's <em>rhythm</em> lives here, not in the waveform.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">3 &middot; Correlation</div>
+              <svg viewBox="0 0 160 62" style="width:100%; margin:10px 0 6px;">
+                <path d="M8,44 L18,44 L22,20 L26,44 L36,44" fill="none" stroke="#f4a261" stroke-width="2.2"/>
+                <path d="M52,44 L64,44 L68,22 L72,44 L88,44 L96,38 L100,44 L118,44 L122,18 L126,44 L152,44"
+                      fill="none" stroke="#2dd4bf" stroke-width="1.8"/>
+                <circle cx="68" cy="22" r="3.5" fill="none" stroke="#f4a261" stroke-width="1.5"/>
+                <circle cx="122" cy="18" r="3.5" fill="none" stroke="#f4a261" stroke-width="1.5"/>
+                <text x="8" y="58" fill="#7a97a3" font-size="7" font-family="monospace">template</text>
+                <text x="52" y="58" fill="#7a97a3" font-size="7" font-family="monospace">slid across the signal</text>
+              </svg>
+              <p class="text-lg" style="margin:0;"><strong>Shape similarity vs. position.</strong> Slide a reference pattern along and score the match everywhere. Answers <em>where</em>, not <em>how loud</em>.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-10b">
+        <h2>What a Filter Actually Does</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:14px;">Same 0.4s of a sperm whale click train through each. <strong>All three panels share one vertical scale</strong> &mdash; autoscale each and you hide the only thing a filter does, which is remove energy.</p>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; flex:1;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Unfiltered</div>
+              <svg viewBox="0 0 150 34" style="width:100%; margin:8px 0 4px;">
+                <line x1="6" y1="27" x2="144" y2="27" stroke="#1c3644"/>
+                <path d="M6,9 L144,9" fill="none" stroke="#7a97a3" stroke-width="2" stroke-dasharray="3 3"/>
+              </svg>
+              <div style="height:118px;"><img class="trace-img" src="assets/filter_raw.png" alt="unfiltered sperm whale click train waveform"></div>
+              <p style="margin-top:8px; font-size:14pt;">Clicks, plus everything else the hydrophone heard.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Low-pass &middot; 500Hz</div>
+              <svg viewBox="0 0 150 34" style="width:100%; margin:8px 0 4px;">
+                <line x1="6" y1="27" x2="144" y2="27" stroke="#1c3644"/>
+                <path d="M6,9 L38,9 Q50,9 54,27 L144,27" fill="none" stroke="#7a97a3" stroke-width="2"/>
+              </svg>
+              <div style="height:118px;"><img class="trace-img" src="assets/filter_lowpassed.png" alt="the same clip low-passed at 500Hz: almost nothing left"></div>
+              <p style="margin-top:8px; font-size:14pt;">Keeps the slow rumble &mdash; and a click train has almost none. <strong>Nearly everything is gone.</strong></p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">High-pass &middot; 2kHz</div>
+              <svg viewBox="0 0 150 34" style="width:100%; margin:8px 0 4px;">
+                <line x1="6" y1="27" x2="144" y2="27" stroke="#1c3644"/>
+                <path d="M6,27 L82,27 Q94,27 98,9 L144,9" fill="none" stroke="#2dd4bf" stroke-width="2"/>
+              </svg>
+              <div style="height:118px;"><img class="trace-img" src="assets/filter_highpassed.png" alt="the same clip high-passed at 2kHz: clicks preserved, background reduced"></div>
+              <p style="margin-top:8px; font-size:14pt;">Clicks survive intact, background thins out. <strong>DEMON's first step.</strong></p>
+            </div>
+
+          </div>
+          <div class="panel" style="margin-top:14px; padding:12px 20px; border-color: var(--secondary-color); display:flex; align-items:center; gap:18px;">
+            <span class="pill amber">why high-pass first</span>
+            <p style="margin:0; font-size:14pt;">Biosonar clicks are <strong>broadband</strong>; the clutter you want gone &mdash; flow noise, hull vibration, distant shipping &mdash; is <strong>low-frequency</strong>. The same asymmetry the technique was built on for propeller cavitation.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-10c">
+        <h2>What an Envelope Is</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:18px;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">1 &middot; High-passed</div>
+              <div style="height:78px;"><img class="trace-img" src="assets/filter_highpassed.png" alt="high-passed click train"></div>
+              <p style="margin-top:8px; font-size:14pt;">Oscillates fast and symmetrically around zero &mdash; averaged over any window it is simply ~0.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">2 &middot; Rectified &middot; |x|</div>
+              <div style="height:78px;"><img class="trace-img" src="assets/filter_rectified.png" alt="rectified click train, all positive"></div>
+              <p style="margin-top:8px; font-size:14pt;">Fold the negative half up. This is the <em>demodulation</em>: fast oscillation becomes a slow positive bump per click.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--secondary-color);">
+              <div class="panel-label">3 &middot; Low-passed &rarr; envelope</div>
+              <div style="height:78px;"><img class="trace-img" src="assets/envelope_overlay.png" alt="envelope traced in amber over the rectified signal"></div>
+              <p style="margin-top:8px; font-size:14pt;">Smooth away the leftover ripple. What remains is <strong>one clean hump per click</strong>.</p>
+            </div>
+
+          </div>
+
+          <div class="panel" style="margin-top:16px; display:flex; flex-direction:column;">
+            <div class="panel-label">The whole clip's envelope &mdash; SpermWhale 7501101V, the pulse train everything downstream measures</div>
+            <div style="height:76px; margin-top:6px;"><img class="trace-img" src="assets/envelope_full.png" alt="full-clip envelope of a sperm whale click train, one peak per click"></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:12px;">
+            <div class="panel" style="padding:10px 16px;">
+              <p style="margin:0; font-size:13pt;"><strong>The carrier is discarded on purpose.</strong> A click's fine waveform structure is the part 16kHz resampling and the recording chain destroy. Its <em>amplitude over time</em> survives &mdash; so that is what we keep.</p>
+            </div>
+            <div class="panel" style="padding:10px 16px;">
+              <p style="margin:0; font-size:13pt;"><strong>Decimate 16kHz &rarr; 1kHz.</strong> Click rates are tens of Hz. Carrying the envelope at audio rate spends almost every later FFT bin on frequencies no repetition rate can occupy.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-10d">
+        <h2>Matching the Representation to the Signal</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:12px;">Two target classes, three representations. Each signal is legible in exactly one of them &mdash; which is why a pipeline that only ever computes a spectrogram sees half the story.</p>
+
+          <div style="display:grid; grid-template-columns: 128px 1fr 1fr; gap:12px 16px; flex:1; min-height:0;">
+
+            <div></div>
+            <div class="panel-label" style="text-align:center;">Tonal moan &mdash; HumpbackWhale 58018011</div>
+            <div class="panel-label" style="text-align:center; color:var(--secondary-color);">Click train &mdash; SpermWhale 7501101V</div>
+
+            <div class="row-label">LOFARgram<br>linear freq</div>
+            <div class="panel" style="padding:6px; position:relative;">
+              <img src="assets/lofar_spectrogram.png" alt="LOFARgram of a humpback moan: horizontal harmonic lines" style="width:100%; height:86px; object-fit:cover; display:block; border-radius:3px;">
+              <span class="pill" style="position:absolute; right:12px; top:12px; background:rgba(6,15,24,0.8);">reads it</span>
+            </div>
+            <div class="panel" style="padding:6px;">
+              <img src="assets/lofar_clicks.png" alt="LOFARgram of a click train: vertical broadband striations" style="width:100%; height:86px; object-fit:cover; display:block; border-radius:3px;">
+            </div>
+
+            <div class="row-label">Envelope</div>
+            <div class="panel" style="padding:6px;">
+              <div style="height:66px;"><img class="trace-img" src="assets/envelope_tonal.png" alt="envelope of a humpback moan: no pulse structure"></div>
+            </div>
+            <div class="panel" style="padding:6px; position:relative;">
+              <div style="height:66px;"><img class="trace-img" src="assets/envelope_full.png" alt="envelope of a click train: one peak per click"></div>
+              <span class="pill amber" style="position:absolute; right:12px; top:8px; background:rgba(6,15,24,0.8);">reads it</span>
+            </div>
+
+            <div class="row-label">DEMON<br>spectrum</div>
+            <div class="panel" style="padding:6px;">
+              <div style="height:66px;"><img class="trace-img" src="assets/demon_spectrum_tonal.png" alt="flat DEMON spectrum for a tonal call"></div>
+            </div>
+            <div class="panel" style="padding:6px; position:relative; border-color:var(--secondary-color);">
+              <div style="height:66px;"><img class="trace-img" src="assets/demon_spectrum_clicks.png" alt="DEMON spectrum with a sharp 20.5Hz peak"></div>
+              <span class="pill amber" style="position:absolute; right:12px; top:8px; background:rgba(6,15,24,0.8);">reads it</span>
+            </div>
+
+          </div>
+
+          <p class="fig-caption" style="margin-top:10px;">Horizontal lines vs. vertical striations &middot; flat envelope vs. pulse train &middot; noise floor vs. a 20.5Hz spike &mdash; same two clips throughout.</p>
+        </div>
       </section>
 
       <section id="slide-11">
@@ -413,12 +614,47 @@
 
           </div>
 
-          <div class="panel" style="margin-top:16px; position:relative; min-height:130px; padding:0; border-color: var(--secondary-color);">
+          <div class="panel" style="margin-top:16px; position:relative; min-height:165px; padding:0; border-color: var(--secondary-color);">
             <p class="fragment fade-in-then-out text-lg" data-fragment-index="0" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Click train.</strong>&nbsp;A click train is broadband pulses fired at a steady rate. In the raw waveform, each click's own high-frequency content can hide the fact that the <em>pulses themselves</em> repeat periodically &mdash; that periodicity is what DEMON is built to expose.</p>
             <p class="fragment fade-in-then-out text-lg" data-fragment-index="1" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>High-pass.</strong>&nbsp;Filtering out low frequencies strips away clutter &mdash; flow noise, hull vibration, distant shipping &mdash; leaving mostly the broadband click energy. It's the same first step used to isolate propeller cavitation from a ship's own machinery tones.</p>
             <p class="fragment fade-in-then-out text-lg" data-fragment-index="2" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Rectify.</strong>&nbsp;Full-wave rectification (absolute value) folds the negative half of the waveform onto the positive half. This is the actual <em>demodulation</em> step &mdash; it converts fast carrier oscillation into a slower amplitude pattern: a series of positive bumps.</p>
             <p class="fragment fade-in-then-out text-lg" data-fragment-index="3" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>Low-pass envelope.</strong>&nbsp;Low-pass filtering the rectified signal smooths away leftover high-frequency ripple, leaving a clean envelope that rises and falls with the click train's own rhythm &mdash; a hump for every click.</p>
-            <p class="fragment fade-in-then-out text-lg" data-fragment-index="4" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>FFT the envelope.</strong>&nbsp;FFT of <em>this envelope</em> &mdash; not the original waveform &mdash; produces the DEMON spectrum. A sharp, isolated peak reads the pulse-repetition rate directly in Hz: for an echolocating animal, literally how many clicks per second, a number no ordinary spectrogram shows as a single value.</p>
+            <p class="fragment fade-in-then-out text-lg" data-fragment-index="4" style="position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); margin:0; padding:0 24px;"><strong>FFT the envelope.</strong>&nbsp;FFT of <em>this envelope</em> &mdash; not the original waveform &mdash; produces the DEMON spectrum. A sharp, isolated peak reads the pulse-repetition rate directly in Hz: for an echolocating animal, literally how many clicks per second, a number no ordinary spectrogram shows as a single value. The transform must run over the <em>whole</em> decimated envelope &mdash; resolution is 1/duration.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-11b">
+        <h2>DEMON on Real Clips</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">SpermWhale 7501101V &mdash; click train</div>
+              <div style="height:128px; margin-top:8px;"><img class="trace-img" src="assets/demon_spectrum_clicks.png" alt="DEMON spectrum with a sharp peak at 20.5Hz and a second harmonic at 41Hz"></div>
+              <div style="display:flex; gap:10px; margin-top:12px;">
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt;">20.5<span style="font-size:13pt;">Hz</span></div><div class="stat-label">click rate</div></div>
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt;">49<span style="font-size:13pt;">ms</span></div><div class="stat-label">between clicks</div></div>
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt;">34&times;</div><div class="stat-label">the band median</div></div>
+              </div>
+              <p class="text-lg" style="margin-top:12px;">Sharp, isolated, and with its <span class="mono" style="color:var(--secondary-color);">2nd harmonic at 41Hz</span> &mdash; a pulse train is not a sine wave, so it has overtones. Counting peaks in the envelope by hand gives 20.0Hz independently.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">HumpbackWhale 58018011 &mdash; tonal moan</div>
+              <div style="height:128px; margin-top:8px;"><img class="trace-img" src="assets/demon_spectrum_tonal.png" alt="flat DEMON spectrum with its largest bump against the DC edge"></div>
+              <div style="display:flex; gap:10px; margin-top:12px;">
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt; color:var(--muted-color);">2.7<span style="font-size:13pt;">Hz</span></div><div class="stat-label">argmax says&hellip;</div></div>
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt; color:var(--muted-color);">6&times;</div><div class="stat-label">the band median</div></div>
+                <div class="stat-tile" style="flex:1;"><div class="stat-number" style="font-size:24pt; color:var(--muted-color);">none</div><div class="stat-label">harmonic</div></div>
+              </div>
+              <p class="text-lg" style="margin-top:12px;">There <em>is</em> a peak &mdash; <span class="mono">argmax</span> always returns something. It sits against the DC edge, is barely above its own noise floor, and has no overtone. This is what &ldquo;nothing to find&rdquo; looks like.</p>
+            </div>
+
+          </div>
+          <div class="panel" style="margin-top:16px; padding:12px 20px; border-color: var(--tertiary-color); display:flex; align-items:center; gap:18px;">
+            <span class="pill rose">the bug this replaced</span>
+            <p style="margin:0; font-size:14pt;">The first implementation passed a fixed <span class="mono">n_fft=4096</span> at the 16kHz audio rate. <span class="mono">rfft</span> <em>trims</em> to that length &mdash; so it saw the first <strong>0.26s</strong> of a 3.7s clip and quantized to 3.9Hz bins: <strong>13 usable points below 50Hz</strong>. Decimating first and transforming the whole envelope gives <strong>0.12Hz</strong> bins.</p>
           </div>
         </div>
       </section>
@@ -426,7 +662,7 @@
       <section id="slide-12">
         <h2>Matched Filtering: Detecting a Known Shape</h2>
         <div class="content">
-          <p class="text-lg" style="margin-bottom: 10px;">A bank of three <em>different</em> reference templates (click, tonal wavelet, chirp) slides across a real hydrophone waveform. The correlation dot rides the response curve live, and the bank flashes <span class="mono" style="color:var(--secondary-color)">amber</span> exactly where a shape lines up.</p>
+          <p class="text-lg" style="margin-bottom: 10px;">The idea, in one animation: a bank of three <em>different</em> reference templates (click, tonal wavelet, chirp) slides across a hydrophone waveform, and the bank flashes <span class="mono" style="color:var(--secondary-color)">amber</span> exactly where a shape lines up. <strong>The next slide is about what you slide it across</strong> &mdash; which turns out to decide whether any of this works.</p>
 
           <div id="mf-anim-wrap" style="position:relative;">
             <div class="panel" style="height:166px; flex:none; display:flex; flex-direction:column;">
@@ -464,7 +700,155 @@
         </div>
       </section>
 
-      <section id="slide-12b">
+      <section id="slide-12a">
+        <h2>Correlate Envelopes, Not Waveforms</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; flex:1;">
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--tertiary-color);">
+              <div class="panel-label" style="color:var(--tertiary-color);">The obvious approach &mdash; and it fails</div>
+              <p class="text-lg" style="margin:10px 0 14px;">Cut 50ms of raw waveform centred on a click, correlate it across three test clips. Peak correlation:</p>
+              <table class="metric-table">
+                <tr><td>SpermWhale &middot; same tape</td><td>0.30</td></tr>
+                <tr><td>SpermWhale &middot; other tape</td><td>0.37</td></tr>
+                <tr><td>HumpbackWhale &middot; other species</td><td class="bad">0.29</td></tr>
+              </table>
+              <p class="text-lg" style="margin-top:14px;">The wrong species scores level with the right one. <strong>No threshold on this number separates them.</strong> A click's fine waveform structure is exactly what 16kHz resampling and the recording chain destroy &mdash; two clicks off different tapes simply do not have the same waveform.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">What survives, and what to build from it</div>
+              <div style="display:flex; align-items:center; gap:16px; margin:10px 0 4px;">
+                <div style="flex:0 0 128px;">
+                  <div style="height:74px;"><img class="trace-img" src="assets/pulse_template.png" alt="averaged click envelope used as the matched-filter template"></div>
+                  <p class="fig-caption" style="margin-top:4px; font-size:10pt;">25ms template</p>
+                </div>
+                <p class="text-lg" style="margin:0;">Correlate the <strong>envelope</strong>, and build the template by <strong>averaging the strongest 40 pulses</strong> rather than picking one.</p>
+              </div>
+              <ul style="margin-top:10px;">
+                <li class="text-lg">Averaging suppresses the noise realization that happened to sit under any single click.</li>
+                <li class="text-lg">The envelope keeps the repeatable part: burst shape and, above all, <strong>timing</strong>.</li>
+                <li class="text-lg"><span class="mono">average_pulse_template</span> raises rather than returns garbage when a clip holds no detectable pulse train.</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-12c">
+        <h2>The Statistic Has to Change Too</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:12px;">Peak height cannot discriminate: a normalized correlation compares <em>shape</em>, and in a 1kHz envelope a walrus knock, a song onset and a sperm whale click are all just &ldquo;a transient&rdquo;. What separates a click train is that matches arrive <strong>at a regular spacing</strong>.</p>
+
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px;">
+
+            <div class="panel" style="padding:10px 12px; border-color: var(--primary-color);">
+              <div class="panel-label">SpermWhale &middot; same tape</div>
+              <div style="height:62px;"><img class="trace-img" src="assets/mf_detections_same_tape.png" alt="envelope with detections landing on every click"></div>
+              <div style="height:54px;"><img class="trace-img" src="assets/mf_response_same_tape.png" alt="matched filter response crossing threshold rhythmically"></div>
+            </div>
+
+            <div class="panel" style="padding:10px 12px;">
+              <div class="panel-label">SpermWhale &middot; other tape</div>
+              <div style="height:62px;"><img class="trace-img" src="assets/mf_detections_other_tape.png" alt="envelope with detections scattered across the quiet stretch"></div>
+              <div style="height:54px;"><img class="trace-img" src="assets/mf_response_other_tape.png" alt="matched filter response with irregular threshold crossings"></div>
+            </div>
+
+            <div class="panel" style="padding:10px 12px;">
+              <div class="panel-label">HumpbackWhale</div>
+              <div style="height:62px;"><img class="trace-img" src="assets/mf_detections_humpback.png" alt="envelope of a tonal call with scattered detections"></div>
+              <div style="height:54px;"><img class="trace-img" src="assets/mf_response_humpback.png" alt="matched filter response with scattered threshold crossings"></div>
+            </div>
+
+          </div>
+
+          <table class="metric-table" style="margin-top:14px;">
+            <tr>
+              <th></th><th>detections</th><th>rate</th><th>CV of gaps</th><th>on a real pulse</th>
+            </tr>
+            <tr>
+              <td>SpermWhale &middot; same tape</td><td>67</td><td>20.8/s</td><td class="good">0.20</td><td class="good">91%</td>
+            </tr>
+            <tr>
+              <td>SpermWhale &middot; other tape</td><td>86</td><td>22.7/s</td><td>0.56</td><td class="bad">19%</td>
+            </tr>
+            <tr>
+              <td>HumpbackWhale</td><td>76</td><td>33.3/s</td><td>0.68</td><td>42%</td>
+            </tr>
+          </table>
+
+          <div class="panel" style="margin-top:12px; padding:10px 18px; border-color: var(--secondary-color); display:flex; align-items:center; gap:16px;">
+            <span class="pill amber">two metrics, not one</span>
+            <p style="margin:0; font-size:13pt;">A scale-free correlation fires happily on the noise floor, and a train of <em>those</em> can be regular too. The middle column detects 86 things at a plausible-looking 22.7/s &mdash; but only 19% sit on an actual click. <strong>The CV alone would have looked fine.</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-12d">
+        <h2>A Template Bank &mdash; and What It Really Buys</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:12px;">Four SpermWhale clips from four <strong>different tapes</strong>, none sharing a tape with any test clip. <span class="mono">matched_filter_bank</span> takes the elementwise max, so a match against <em>any</em> member counts. Each cell: CV of detection gaps, then % of detections on a real pulse.</p>
+
+          <table class="metric-table">
+            <colgroup><col><col><col><col><col><col class="spotlight"></colgroup>
+            <tr>
+              <th>test clip</th><th>93570011</th><th>72009005</th><th>9357300H</th><th>9358400V</th><th>the bank</th>
+            </tr>
+            <tr>
+              <td>SpermWhale &middot; same tape</td>
+              <td class="bad">1.30 &middot; 69%</td><td class="good">0.29 &middot; 89%</td><td>0.94 &middot; 85%</td><td class="bad">1.14 &middot; 67%</td><td class="good">0.29 &middot; 75%</td>
+            </tr>
+            <tr>
+              <td>SpermWhale &middot; other tape</td>
+              <td>0.52 &middot; 16%</td><td>0.57 &middot; 19%</td><td>0.58 &middot; 18%</td><td>0.59 &middot; 15%</td><td class="mark">0.45 &middot; 12%</td>
+            </tr>
+            <tr>
+              <td>HumpbackWhale</td>
+              <td>0.81 &middot; 40%</td><td>0.89 &middot; 44%</td><td>0.98 &middot; 50%</td><td>0.67 &middot; 36%</td><td class="mark">0.63 &middot; 41%</td>
+            </tr>
+          </table>
+
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-top:16px;">
+            <div class="panel" style="padding:12px 16px; border-color: var(--primary-color);">
+              <p style="margin:0; font-size:13.5pt;"><strong>It removes the gamble.</strong> Individual members swing from 0.29 to 1.30 on the <em>same</em> clip, with nothing marking the good one in advance. The bank tracks its best member without you having to know which.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <p style="margin:0; font-size:13.5pt;"><strong>The gap doesn't widen.</strong> The humpback's CV falls to 0.63 too &mdash; better than any member alone. More templates means more chances to fire, and denser false detections are more evenly spaced ones.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px; border-color: var(--secondary-color);">
+              <p style="margin:0; font-size:13.5pt;"><strong>Row 2 is a trap.</strong> The bank posts that row's best CV (0.45) with its <em>worst</em> on-pulse figure (12%). It got more regular by chasing the noise floor more consistently.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-12e">
+        <h2>Most of That Separation Was Tape, Not Species</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+            <div class="panel" style="border-color: var(--tertiary-color);">
+              <div class="panel-label" style="color:var(--tertiary-color);">Same template, SpermWhale clips only</div>
+              <table class="metric-table" style="margin-top:10px;">
+                <tr><th></th><th>CV of gaps</th><th>on a real pulse</th></tr>
+                <tr><td>the template's own tape</td><td class="good">0.20&ndash;0.32</td><td class="good">83&ndash;91%</td></tr>
+                <tr><td>any other tape</td><td class="bad">0.49&ndash;0.75</td><td class="bad">13&ndash;54%</td></tr>
+                <tr><td>HumpbackWhale, for scale</td><td>0.68</td><td>42%</td></tr>
+              </table>
+              <p class="text-lg" style="margin-top:14px;">Cross-tape SpermWhale clips <strong>overlap the wrong species</strong>. The biggest step in the whole measurement is between tapes, not between animals.</p>
+            </div>
+            <div class="panel" style="display:flex; flex-direction:column; justify-content:center;">
+              <p class="text-lg" style="margin:0 0 14px;">A template built from one clip is substantially a detector for <strong>that tape's recording conditions</strong> &mdash; its hydrophone, its noise floor, its era of magnetic tape.</p>
+              <p class="text-lg" style="margin:0 0 14px;">This is the same leak Part 1's split slide warns about and notebook 02 measures for the trained models. Here it appears in a method with <strong>no learned parameters at all</strong>.</p>
+              <div class="panel" style="padding:12px 18px; border-color: var(--secondary-color); background:rgba(244,162,97,0.06);">
+                <p style="margin:0; font-size:14pt;">Which settles the question of whose fault it is: <strong>it is a property of the archive</strong>, not an artifact of neural networks. Any method trained or tuned per-tape will flatter itself the same way.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-12f">
         <h2>What a Deployment-Grade Detector Adds</h2>
         <div class="content">
           <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
@@ -495,7 +879,7 @@
           </div>
           <div class="panel" style="margin-top:12px; padding:12px 18px; border-color: var(--secondary-color); display:flex; align-items:center; gap:16px;">
             <span class="pill amber">the honest gap</span>
-            <p style="margin:0; font-size:13pt;">This project's <span class="mono">matched_filter_bank</span> covers #1's core math and a miniature #2 (four raw clips) &mdash; #3&ndash;#6 are real, scoped extension work.</p>
+            <p style="margin:0; font-size:13pt;">This project's <span class="mono">matched_filter_bank</span> covers #1's core math in the time domain and a miniature #2 (four averaged envelope templates, one per tape). #3&ndash;#6 are real, scoped extension work &mdash; and the tape result on the previous slide is exactly the problem #2 and #6 exist to solve.</p>
           </div>
         </div>
       </section>
@@ -736,7 +1120,7 @@
         <div class="content">
           <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; flex:1;">
             <div class="panel"><i class="fa-solid fa-layer-group" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>00</strong> &mdash; imbalance &amp; leakage-safe splits</p></div>
-            <div class="panel"><i class="fa-solid fa-wave-square" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>01</strong> &mdash; STFT, LOFAR, DEMON, matched filter</p></div>
+            <div class="panel"><i class="fa-solid fa-wave-square" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>01</strong> &mdash; filters, envelopes, STFT/LOFAR, DEMON, matched filter</p></div>
             <div class="panel"><i class="fa-solid fa-diagram-project" style="color:var(--primary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>02</strong> &mdash; from-scratch CNN baseline</p></div>
             <div class="panel"><i class="fa-solid fa-arrows-split-up-and-left" style="color:var(--secondary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>03</strong> &mdash; ImageNet transfer learning</p></div>
             <div class="panel"><i class="fa-solid fa-circle-nodes" style="color:var(--secondary-color); font-size:16pt;"></i><p class="text-lg" style="margin:10px 0 0 0;"><strong>04</strong> &mdash; AST self-attention</p></div>

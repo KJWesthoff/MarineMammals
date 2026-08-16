@@ -51,10 +51,14 @@ you've been through all seven (raw-waveform models, self-supervised
 pretraining, few-shot learning for the long tail, and more).
 
 An illustrated slide deck covering the theory behind the exercises --
-STFT/LOFAR, DEMON, matched filtering, the three architectures, and the
-imbalance/robustness pitfalls -- lives at
+filters and envelopes, STFT/LOFAR, DEMON, matched filtering, the three
+architectures, and the imbalance/robustness pitfalls -- lives at
 [`docs/theory-deck/presentation.html`](docs/theory-deck/presentation.html)
-(open directly in a browser, no build step).
+(open directly in a browser, no build step). Its figures are generated
+from the real dataset by `python docs/theory-deck/make_assets.py`, using
+the same `watkins.features` calls and the same example clips notebook 01
+names, so a slide shows what the code actually produces. Re-run it after
+changing a feature transform or notebook 01's example clips.
 
 ## Why this dataset needs more care than it looks like
 
