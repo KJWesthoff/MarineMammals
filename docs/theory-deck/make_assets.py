@@ -44,6 +44,7 @@ from watkins.features import (  # noqa: E402
     matched_filter,
     detect_peaks,
     average_pulse_template,
+    pulse_train_stats,
 )
 import torchaudio  # noqa: E402
 
@@ -317,7 +318,8 @@ def matched_filter_assets():
         yc, src = load(record)
         env, rate = demon_envelope(as_wav(yc), sample_rate=src)
         response = matched_filter(env.unsqueeze(0), template)
-        det = detect_peaks(response, rate, DETECTION_THRESHOLD)
+        stats = pulse_train_stats(env, response, rate, DETECTION_THRESHOLD)
+        det = stats.detections
         e = env.numpy()
         t = np.arange(len(e)) / rate
 
@@ -339,12 +341,13 @@ def matched_filter_assets():
         ax.margins(x=0.005)
         save(fig, f"mf_response_{slug}.png")
 
-        if det.numel() >= 4:
-            iv = np.diff(det.numpy()) / rate
-            on_pulse = (e[det.numpy()] > np.median(e) + e.std()).mean()
-            print(f"    {record} ({slug}): {det.numel()} det, "
-                  f"{1 / np.median(iv):.1f}/s, CV {iv.std() / iv.mean():.2f}, "
-                  f"{on_pulse:.0%} on pulse")
+        if stats.note is None:
+            print(f"    {record} ({slug}): {stats.n} det, {stats.rate_hz:.1f}/s, "
+                  f"CV {stats.cv:.2f}, {stats.on_pulse:.0%} on pulse")
+        else:
+            # The slide quotes these numbers, so never print one the library
+            # declined to estimate -- see pulse_train_stats' docstring.
+            print(f"    {record} ({slug}): {stats.note}")
 
 
 if __name__ == "__main__":

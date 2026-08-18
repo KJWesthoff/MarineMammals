@@ -48,6 +48,15 @@ Two representations are provided:
     `docs/theory-deck` for how much further deployment-grade systems go
     (FFT/GCC-PHAT correlation, CFAR thresholding, whitening, and more).
 
+``detect_peaks`` / ``pulse_train_stats``
+    Turn a matched-filter response into detections, then into the two
+    numbers that say whether those detections look like a pulse train:
+    how regular their spacing is, and whether they sit on real energy.
+    ``pulse_train_stats`` refuses to report on too few detections rather
+    than returning a confident-looking number -- see its docstring for
+    why that guard is the difference between a measurement and an
+    artifact.
+
 A caveat worth keeping in mind throughout: this project resamples every
 clip to 16kHz (see `data.py`), so the Nyquist ceiling is 8kHz. Baleen
 whale calls (fin, blue, humpback, right whale) mostly sit well under that.
@@ -60,6 +69,9 @@ higher-sample-rate variant this motivates as a follow-up.
 """
 from __future__ import annotations
 
+from typing import NamedTuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torchaudio
@@ -368,3 +380,113 @@ def matched_filter_bank(wav: torch.Tensor, templates: list[torch.Tensor]) -> tor
         raise ValueError("templates must be a non-empty list")
     responses = torch.stack([matched_filter(wav, t) for t in templates])
     return responses.max(dim=0).values
+
+
+#: Below this many detections, `pulse_train_stats` reports nothing rather
+#: than a number. See that function's docstring for the measurement behind
+#: the value.
+MIN_DETECTIONS = 20
+
+
+class PulseTrainStats(NamedTuple):
+    """What a thresholded matched-filter response says about a pulse train.
+
+    `rate_hz`, `cv` and `on_pulse` are NaN when `n` is below the required
+    minimum -- check `note` (None when the numbers are usable) before
+    quoting any of them.
+    """
+
+    detections: torch.Tensor
+    n: int
+    rate_hz: float
+    cv: float
+    on_pulse: float
+    crest: float
+    note: str | None
+
+
+def pulse_train_stats(
+    envelope: torch.Tensor,
+    response: torch.Tensor,
+    sample_rate: float,
+    threshold: float,
+    refractory_s: float = 0.015,
+    min_detections: int = MIN_DETECTIONS,
+) -> PulseTrainStats:
+    """Score a matched-filter `response` against the `envelope` it came from.
+
+    Returns three numbers, none of which means anything on its own:
+
+    ``rate_hz``
+        1 / median inter-detection interval -- the pulse rate, comparable
+        against a `demon_spectrum` peak computed independently.
+    ``cv``
+        Coefficient of variation of those intervals. Low = metronomic =
+        a pulse train; high = the detector firing on scattered transients.
+    ``on_pulse``
+        Share of detections landing above `median(envelope) + std(envelope)`
+        rather than on the noise floor between pulses. A normalized
+        correlation is scale-free and will fire on a wiggle in a quiet
+        stretch, so a low `cv` without a high `on_pulse` is worthless.
+
+    Plus ``crest`` (max/median of the envelope) as a cheap sanity check on
+    whether the clip contains transients at all -- informational, not a
+    gate: a tonal call with a sharp onset also scores high on it.
+
+    **The minimum-detection guard is the important part.** Both `cv` and
+    `on_pulse` are averages over the detections, and both degrade in the
+    same direction as that count falls -- toward looking *better*:
+
+    - `cv` over n detections is estimated from n-1 gaps. Measured across
+      1,184 SpermWhale clips, median `cv` runs 0.46 for clips yielding
+      4-6 detections up to 0.75 for clips yielding 61+. Short clips score
+      better not because brief pulse trains are more regular, but because
+      three gaps cannot expose an irregular one.
+    - `on_pulse` is quantized to 1/n. With four detections the only
+      reachable values are 0, 25, 50, 75 and 100%, and 24.6% of clips in
+      the 4-6 band report exactly 100% -- against 0.6% of clips with 26+.
+
+    So a pool of short clips reliably produces the best-looking scores in
+    any ranking, and picking the top of that ranking selects fragments
+    rather than good detections. Reporting NaN with a `note` is the point:
+    a caller that ranks or filters on these numbers cannot silently
+    promote a 0.32s clip to the top of the table.
+
+    `min_detections` defaults to `MIN_DETECTIONS` (20), which at typical
+    sperm whale click rates means roughly a second of continuous train.
+    Lower it deliberately if you know what you are trading away.
+    """
+    env = envelope.squeeze()
+    if env.ndim != 1:
+        raise ValueError(f"expected a 1D envelope, got shape {tuple(envelope.shape)}")
+
+    detections = detect_peaks(response, sample_rate, threshold, refractory_s=refractory_s)
+    values = env.detach().cpu().numpy()
+    median = float(np.median(values))
+    crest = float(values.max() / median) if median > 0 else float("inf")
+
+    n = int(detections.numel())
+    if n < min_detections:
+        return PulseTrainStats(
+            detections=detections,
+            n=n,
+            rate_hz=float("nan"),
+            cv=float("nan"),
+            on_pulse=float("nan"),
+            crest=crest,
+            note=f"only {n} detections (need {min_detections}); "
+                 f"cv and on_pulse are not estimable from this clip",
+        )
+
+    idx = detections.numpy()
+    intervals = np.diff(idx) / sample_rate
+    gate = median + values.std()
+    return PulseTrainStats(
+        detections=detections,
+        n=n,
+        rate_hz=float(1.0 / np.median(intervals)),
+        cv=float(intervals.std() / intervals.mean()),
+        on_pulse=float((values[idx] > gate).mean()),
+        crest=crest,
+        note=None,
+    )

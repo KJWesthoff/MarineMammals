@@ -238,6 +238,10 @@ def add_banner(nb: dict, name: str) -> dict:
     text = BANNER.format(name=name, stem=name.split("_")[0])
     banner_cell = {
         "cell_type": "markdown",
+        # nbformat 4.5+ requires a cell id, and warns today where it will
+        # raise tomorrow. Derived from the notebook name so re-syncing the
+        # same copy doesn't churn the id.
+        "id": "local-banner-" + name.split("_")[0],
         "metadata": {"tags": ["local-copy-banner"]},
         "source": text.splitlines(keepends=True),
     }

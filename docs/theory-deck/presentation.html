@@ -788,7 +788,7 @@
       <section id="slide-12d">
         <h2>A Template Bank &mdash; and What It Really Buys</h2>
         <div class="content">
-          <p class="text-lg" style="margin-bottom:12px;">Four SpermWhale clips from four <strong>different tapes</strong>, none sharing a tape with any test clip. <span class="mono">matched_filter_bank</span> takes the elementwise max, so a match against <em>any</em> member counts. Each cell: CV of detection gaps, then % of detections on a real pulse.</p>
+          <p class="text-lg" style="margin-bottom:12px;">Four SpermWhale clips from four <strong>different tapes</strong>, none sharing a tape with any test clip. <span class="mono">matched_filter_bank</span> takes the elementwise max, so a match against <em>any</em> member counts. Each cell: CV of detection gaps, then % of detections on a real pulse &mdash; or <span class="mono">guarded</span> where there were too few detections to estimate either.</p>
 
           <table class="metric-table">
             <colgroup><col><col><col><col><col><col class="spotlight"></colgroup>
@@ -797,7 +797,7 @@
             </tr>
             <tr>
               <td>SpermWhale &middot; same tape</td>
-              <td class="bad">1.30 &middot; 69%</td><td class="good">0.29 &middot; 89%</td><td>0.94 &middot; 85%</td><td class="bad">1.14 &middot; 67%</td><td class="good">0.29 &middot; 75%</td>
+              <td class="bad">n=13 &middot; guarded</td><td class="good">0.29 &middot; 89%</td><td>0.94 &middot; 85%</td><td class="bad">1.14 &middot; 67%</td><td class="good">0.29 &middot; 75%</td>
             </tr>
             <tr>
               <td>SpermWhale &middot; other tape</td>
@@ -811,7 +811,7 @@
 
           <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-top:16px;">
             <div class="panel" style="padding:12px 16px; border-color: var(--primary-color);">
-              <p style="margin:0; font-size:13.5pt;"><strong>It removes the gamble.</strong> Individual members swing from 0.29 to 1.30 on the <em>same</em> clip, with nothing marking the good one in advance. The bank tracks its best member without you having to know which.</p>
+              <p style="margin:0; font-size:13.5pt;"><strong>It removes the gamble.</strong> On the <em>same</em> clip one member scores 0.29, two score 0.94 and 1.14, and the fourth fires only 13 times &mdash; too few to score at all. Nothing marks the good one in advance; the bank tracks it anyway.</p>
             </div>
             <div class="panel" style="padding:12px 16px;">
               <p style="margin:0; font-size:13.5pt;"><strong>The gap doesn't widen.</strong> The humpback's CV falls to 0.63 too &mdash; better than any member alone. More templates means more chances to fire, and denser false detections are more evenly spaced ones.</p>
@@ -824,26 +824,38 @@
       </section>
 
       <section id="slide-12e">
-        <h2>Most of That Separation Was Tape, Not Species</h2>
+        <h2>Where That Separation Actually Comes From</h2>
         <div class="content">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
-            <div class="panel" style="border-color: var(--tertiary-color);">
-              <div class="panel-label" style="color:var(--tertiary-color);">Same template, SpermWhale clips only</div>
-              <table class="metric-table" style="margin-top:10px;">
-                <tr><th></th><th>CV of gaps</th><th>on a real pulse</th></tr>
-                <tr><td>the template's own tape</td><td class="good">0.20&ndash;0.32</td><td class="good">83&ndash;91%</td></tr>
-                <tr><td>any other tape</td><td class="bad">0.49&ndash;0.75</td><td class="bad">13&ndash;54%</td></tr>
-                <tr><td>HumpbackWhale, for scale</td><td>0.68</td><td>42%</td></tr>
+          <p style="font-size:14pt; margin:4px 0 12px;">Two SpermWhale clips, both containing real click trains, score <span class="mono" style="color:var(--primary-color);">0.20 / 91%</span> and <span class="mono" style="color:var(--tertiary-color);">0.56 / 19%</span>. Across all 1,184 SpermWhale clips this template runs on, the CV interquartile range is <strong>0.56&ndash;0.79</strong> &mdash; clip-to-clip spread swamps everything else here.</p>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">The obvious suspect: tape</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th>template <span class="mono">7501101V</span></th><th>n</th><th>CV</th><th>on&nbsp;pulse</th></tr>
+                <tr><td>its own tape</td><td>59</td><td class="good">0.45</td><td class="good">78%</td></tr>
+                <tr><td>every other tape</td><td>1,125</td><td>0.69</td><td>57%</td></tr>
               </table>
-              <p class="text-lg" style="margin-top:14px;">Cross-tape SpermWhale clips <strong>overlap the wrong species</strong>. The biggest step in the whole measurement is between tapes, not between animals.</p>
+              <p style="margin:12px 0 0; font-size:13.5pt;">Same-tape clips <em>do</em> score better. But this cannot separate &ldquo;the template matches this tape&rdquo; from &ldquo;<strong>this tape has cleaner click trains</strong>&rdquo;.</p>
             </div>
-            <div class="panel" style="display:flex; flex-direction:column; justify-content:center;">
-              <p class="text-lg" style="margin:0 0 14px;">A template built from one clip is substantially a detector for <strong>that tape's recording conditions</strong> &mdash; its hydrophone, its noise floor, its era of magnetic tape.</p>
-              <p class="text-lg" style="margin:0 0 14px;">This is the same leak Part 1's split slide warns about and notebook 02 measures for the trained models. Here it appears in a method with <strong>no learned parameters at all</strong>.</p>
-              <div class="panel" style="padding:12px 18px; border-color: var(--secondary-color); background:rgba(244,162,97,0.06);">
-                <p style="margin:0; font-size:14pt;">Which settles the question of whose fault it is: <strong>it is a property of the archive</strong>, not an artifact of neural networks. Any method trained or tuned per-tape will flatter itself the same way.</p>
-              </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color);">
+              <div class="panel-label">The control: swap the template</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th>template (its tape)</th><th>750110</th><th>720090</th><th>935700</th></tr>
+                <tr><td><span class="mono">7501101V</span> (750110)</td><td class="mark">0.45</td><td>0.62</td><td>0.70</td></tr>
+                <tr><td><span class="mono">72009005</span> (720090)</td><td class="good">0.44</td><td class="mark">0.61</td><td>0.72</td></tr>
+                <tr><td><span class="mono">93570011</span> (935700)</td><td>0.69</td><td>0.67</td><td class="mark">0.73</td></tr>
+              </table>
+              <p style="margin:12px 0 0; font-size:13.5pt;">Amber = shared tape. <strong>The diagonal is not special.</strong> Tape 750110 scores 0.45 with its own template and <span class="mono" style="color:var(--primary-color);">0.44</span> with a foreign one; <span class="mono">93570011</span> does worst on its <em>own</em> tape.</p>
             </div>
+
+          </div>
+
+          <div class="panel" style="margin-top:14px; padding:12px 20px; border-color: var(--secondary-color); display:flex; align-items:center; gap:18px;">
+            <span class="pill amber">what the control changed</span>
+            <p style="margin:0; font-size:13.5pt;">A column effect (some tapes hold cleaner click trains) and a row effect (some clips make better templates) &mdash; not tape <em>matching</em>. An earlier version of this deck claimed &ldquo;a template is substantially a tape detector&rdquo; from three hand-picked clips. It did not survive the swap. <strong>Three clips plus a plausible mechanism is how a confident wrong conclusion gets made.</strong></p>
           </div>
         </div>
       </section>
@@ -879,7 +891,7 @@
           </div>
           <div class="panel" style="margin-top:12px; padding:12px 18px; border-color: var(--secondary-color); display:flex; align-items:center; gap:16px;">
             <span class="pill amber">the honest gap</span>
-            <p style="margin:0; font-size:13pt;">This project's <span class="mono">matched_filter_bank</span> covers #1's core math in the time domain and a miniature #2 (four averaged envelope templates, one per tape). #3&ndash;#6 are real, scoped extension work &mdash; and the tape result on the previous slide is exactly the problem #2 and #6 exist to solve.</p>
+            <p style="margin:0; font-size:13pt;">This project's <span class="mono">matched_filter_bank</span> covers #1's core math in the time domain and a miniature #2 (four averaged envelope templates, one per tape). #3&ndash;#6 are real, scoped extension work &mdash; and the per-recording spread on the previous slide is exactly what #2 and #6 exist to absorb.</p>
           </div>
         </div>
       </section>
@@ -1083,12 +1095,8 @@
       </section>
 
       <section id="slide-20" style="display: flex; flex-direction: column; height: 100%;">
-        <h2>Degenerate "Robustness" vs. the Real Thing</h2>
-        <div style="flex:1; display:grid; grid-template-rows: 1fr 2fr; gap:18px; min-height:0; min-width:0; padding-top:20px;">
-          <div class="panel" style="display:flex; align-items:center; gap:20px;">
-            <span class="pill rose">watch for this</span>
-            <p class="text-lg" style="margin:0;">If aggregate accuracy stays high while rare-species accuracy collapses, the model isn't robust &mdash; it's just defaulting to the majority species. Illustrative curves, not measured.</p>
-          </div>
+        <h2>Accuracy vs. SNR &mdash; All Five Runs, Measured</h2>
+        <div style="flex:1; display:grid; grid-template-columns: 3fr 2fr; gap:20px; min-height:0; min-width:0; padding-top:16px;">
           <div style="position:relative; min-height:0; min-width:0;">
             <canvas data-chart="line">
             <!--
@@ -1096,21 +1104,161 @@
               "data": {
                 "labels": ["clean", "20dB", "10dB", "5dB", "0dB", "-5dB", "-10dB"],
                 "datasets": [
-                  { "label": "Aggregate accuracy (misleading)", "data": [0.58, 0.55, 0.50, 0.46, 0.40, 0.34, 0.30], "borderColor": "#f43f5e", "backgroundColor": "#f43f5e", "fill": false, "tension": 0.3 },
-                  { "label": "Rare-species accuracy (the truth)", "data": [0.44, 0.38, 0.28, 0.16, 0.07, 0.02, 0.0], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.3 }
+                  { "label": "ast_finetune", "data": [0.577, 0.564, 0.561, 0.557, 0.527, 0.439, 0.266], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.25, "borderWidth": 3 },
+                  { "label": "efficientnet_b0", "data": [0.504, 0.481, 0.459, 0.418, 0.355, 0.260, 0.113], "borderColor": "#7a97a3", "backgroundColor": "#7a97a3", "fill": false, "tension": 0.25 },
+                  { "label": "resnet18", "data": [0.485, 0.473, 0.436, 0.405, 0.348, 0.171, 0.087], "borderColor": "#4d6f7d", "backgroundColor": "#4d6f7d", "fill": false, "tension": 0.25 },
+                  { "label": "baseline_cnn", "data": [0.447, 0.435, 0.397, 0.375, 0.335, 0.234, 0.028], "borderColor": "#35505c", "backgroundColor": "#35505c", "fill": false, "tension": 0.25 },
+                  { "label": "ast_linear_probe", "data": [0.507, 0.448, 0.350, 0.258, 0.154, 0.051, 0.009], "borderColor": "#f43f5e", "backgroundColor": "#f43f5e", "fill": false, "tension": 0.25, "borderWidth": 3 }
                 ]
               },
               "options": {
                 "maintainAspectRatio": false,
-                "plugins": { "legend": { "position": "bottom" } },
+                "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 14, "font": { "size": 11 } } } },
+                "elements": { "point": { "radius": 3 } },
                 "scales": {
-                  "y": { "beginAtZero": true, "max": 1, "title": { "display": true, "text": "accuracy" } },
-                  "x": { "title": { "display": true, "text": "SNR (worsening →)" } }
+                  "y": { "beginAtZero": true, "max": 0.65, "title": { "display": true, "text": "test accuracy" } },
+                  "x": { "title": { "display": true, "text": "white noise, SNR (worsening →)" } }
                 }
               }
             }
             -->
             </canvas>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px; justify-content:center; min-height:0;">
+            <div class="panel" style="padding:14px 18px; border-color: var(--tertiary-color);">
+              <p style="margin:0; font-size:14pt;"><span class="pill rose">the ranking changes</span></p>
+              <p style="margin:10px 0 0; font-size:14pt;"><span class="mono">ast_linear_probe</span> is <strong>2nd</strong> on clean audio (a hair over <span class="mono">efficientnet_b0</span>) and <strong>dead last</strong> by 0dB &mdash; below the from-scratch CNN it beat by six points clean.</p>
+            </div>
+            <div class="panel" style="padding:14px 18px;">
+              <p style="margin:0; font-size:14pt;"><strong>Accuracy still held at 0dB</strong>, as a share of each model's own clean score:</p>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><td>ast_finetune</td><td class="good">91%</td></tr>
+                <tr><td>baseline_cnn</td><td>75%</td></tr>
+                <tr><td>resnet18</td><td>72%</td></tr>
+                <tr><td>efficientnet_b0</td><td>70%</td></tr>
+                <tr><td>ast_linear_probe</td><td class="bad">30%</td></tr>
+              </table>
+            </div>
+            <p class="fig-caption" style="margin:0; text-align:left;">All five <span class="mono">*_gpu</span> sweeps, 3,072 test clips each &middot; <span class="mono">results/metrics/*_robustness.csv</span></p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-20b">
+        <h2>Same Backbone, Opposite Robustness</h2>
+        <div class="content">
+          <p class="text-lg" style="margin-bottom:14px;">Both AST runs start from the identical AudioSet-pretrained transformer. The only difference is whether the backbone was <strong>frozen</strong> (linear probe) or <strong>fine-tuned</strong>. Clean, that choice looks worth seven accuracy points. Under noise it is worth everything.</p>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--tertiary-color); min-height:0;">
+              <div class="panel-label" style="color:var(--tertiary-color);">ast_linear_probe &mdash; frozen backbone</div>
+              <div style="flex:1; position:relative; min-height:0; margin-top:8px;">
+                <canvas data-chart="line">
+                <!--
+                {
+                  "data": {
+                    "labels": ["clean", "20dB", "10dB", "5dB", "0dB", "-5dB", "-10dB"],
+                    "datasets": [
+                      { "label": "KillerWhale + SpermWhale", "data": [0.81, 0.88, 0.80, 0.61, 0.39, 0.17, 0.01], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.25, "borderWidth": 3 },
+                      { "label": "the other 52 species (mean)", "data": [0.33, 0.27, 0.20, 0.13, 0.07, 0.04, 0.03], "borderColor": "#f43f5e", "backgroundColor": "#f43f5e", "fill": false, "tension": 0.25, "borderWidth": 3 }
+                    ]
+                  },
+                  "options": {
+                    "maintainAspectRatio": false,
+                    "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                    "elements": { "point": { "radius": 2 } },
+                    "scales": { "y": { "beginAtZero": true, "max": 1 }, "x": {} }
+                  }
+                }
+                -->
+                </canvas>
+              </div>
+              <p style="margin:8px 0 0; font-size:13.5pt;">The gap <strong>widens</strong> as noise rises &mdash; 2.5&times; clean, 4.7&times; at 5dB. Rare species are gone before the aggregate looks alarming.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color); min-height:0;">
+              <div class="panel-label">ast_finetune &mdash; fine-tuned backbone</div>
+              <div style="flex:1; position:relative; min-height:0; margin-top:8px;">
+                <canvas data-chart="line">
+                <!--
+                {
+                  "data": {
+                    "labels": ["clean", "20dB", "10dB", "5dB", "0dB", "-5dB", "-10dB"],
+                    "datasets": [
+                      { "label": "KillerWhale + SpermWhale", "data": [0.95, 0.95, 0.94, 0.93, 0.87, 0.71, 0.39], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.25, "borderWidth": 3 },
+                      { "label": "the other 52 species (mean)", "data": [0.38, 0.36, 0.36, 0.36, 0.35, 0.28, 0.18], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.25, "borderWidth": 3 }
+                    ]
+                  },
+                  "options": {
+                    "maintainAspectRatio": false,
+                    "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                    "elements": { "point": { "radius": 2 } },
+                    "scales": { "y": { "beginAtZero": true, "max": 1 }, "x": {} }
+                  }
+                }
+                -->
+                </canvas>
+              </div>
+              <p style="margin:8px 0 0; font-size:13.5pt;">Both lines hold their level down to 0dB. Genuinely more robust &mdash; but note the <strong>gap is there at clean too</strong>: 0.95 vs 0.38.</p>
+            </div>
+
+          </div>
+          <div class="panel" style="margin-top:14px; padding:12px 20px; border-color: var(--secondary-color); display:flex; align-items:center; gap:18px;">
+            <span class="pill amber">read both, always</span>
+            <p style="margin:0; font-size:14pt;">A big majority/rare gap is the archive's imbalance showing through &mdash; every model here has one. What the sweep adds is whether noise <strong>widens</strong> it. Widening means the model is falling back on the majority species; holding means it is still hearing something.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-20c">
+        <h2>Noise Colour Matters</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 3fr 2fr; gap:22px; flex:1; min-height:0;">
+            <div style="position:relative; min-height:0; min-width:0;">
+              <canvas data-chart="line">
+              <!--
+              {
+                "data": {
+                  "labels": ["20dB", "10dB", "5dB", "0dB", "-5dB", "-10dB"],
+                  "datasets": [
+                    { "label": "ast_finetune · white", "data": [0.563, 0.562, 0.557, 0.527, 0.438, 0.266], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.25, "borderWidth": 3 },
+                    { "label": "ast_finetune · pink", "data": [0.568, 0.568, 0.559, 0.540, 0.495, 0.373], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.25, "borderWidth": 3, "borderDash": [6, 4] },
+                    { "label": "baseline_cnn · white", "data": [0.436, 0.397, 0.375, 0.335, 0.234, 0.028], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.25 },
+                    { "label": "baseline_cnn · pink", "data": [0.451, 0.445, 0.414, 0.357, 0.257, 0.138], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.25, "borderDash": [6, 4] }
+                  ]
+                },
+                "options": {
+                  "maintainAspectRatio": false,
+                  "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 14, "font": { "size": 11 } } } },
+                  "elements": { "point": { "radius": 3 } },
+                  "scales": {
+                    "y": { "beginAtZero": true, "max": 0.65, "title": { "display": true, "text": "test accuracy" } },
+                    "x": { "title": { "display": true, "text": "SNR (worsening →)" } }
+                  }
+                }
+              }
+              -->
+              </canvas>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px; justify-content:center;">
+              <div class="panel" style="padding:14px 18px;">
+                <p style="margin:0; font-size:14pt;"><strong>Pink beats white for every model, at every SNR.</strong> The advantage at &minus;10dB:</p>
+                <table class="metric-table" style="margin-top:8px;">
+                  <tr><td>efficientnet_b0</td><td class="good">+12.9 pts</td></tr>
+                  <tr><td>resnet18</td><td class="good">+12.4</td></tr>
+                  <tr><td>baseline_cnn</td><td>+11.0</td></tr>
+                  <tr><td>ast_finetune</td><td>+10.7</td></tr>
+                  <tr><td>ast_linear_probe</td><td>+7.7</td></tr>
+                </table>
+              </div>
+              <div class="panel" style="padding:14px 18px; border-color: var(--secondary-color);">
+                <p style="margin:0; font-size:13pt;">Pink concentrates its power at low frequency, so at equal total SNR it leaves most of the band comparatively clean. White spreads the same power everywhere.</p>
+              </div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:12px; padding:10px 18px; border-color: var(--tertiary-color); display:flex; align-items:center; gap:16px;">
+            <span class="pill rose">the caveat that matters</span>
+            <p style="margin:0; font-size:13.5pt;">Real ocean ambient noise is closer to <strong>pink</strong> than white, so the white curves are a pessimistic bound and the pink ones the more deployment-relevant read. Neither substitutes for testing on genuinely distant recordings, which this archive does not contain.</p>
           </div>
         </div>
       </section>

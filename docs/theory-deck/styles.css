@@ -275,8 +275,11 @@
 /* Monospace inline labels (used inside diagrams / captions) */
 .mono { font-family: var(--mono-font); }
 
-/* Caption under a figure */
-.fig-caption {
+/* Caption under a figure.
+   Scoped under .reveal so it outranks the `.reveal p` base rule -- without
+   that, every caption silently rendered at the 16pt body size instead of
+   the 12pt intended here. */
+.reveal .fig-caption {
   font-family: var(--mono-font);
   font-size: 12pt;
   color: var(--muted-color);
