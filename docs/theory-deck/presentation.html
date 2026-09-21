@@ -17,6 +17,55 @@
 
   <!-- Chart.js for data visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Slide search overlay. Lives outside .reveal so it is not affected by
+       reveal.js' slide scaling: sizes here are px in screen space. -->
+  <style>
+    #deck-search { position: fixed; inset: 0; z-index: 3000; display: none;
+      background: rgba(4, 10, 17, 0.82); backdrop-filter: blur(3px);
+      font-family: "Inter", Helvetica, sans-serif; }
+    #deck-search.open { display: block; }
+    #ds-box { width: min(760px, 92vw); margin: 8vh auto 0; background: #0d1c29;
+      border: 1px solid #2dd4bf; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55); }
+    #ds-field { display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+      border-bottom: 1px solid #17303f; }
+    #ds-field i { color: #2dd4bf; font-size: 15px; }
+    #ds-input { flex: 1; background: transparent; border: 0; outline: 0; color: #e8f1f2;
+      font-family: "IBM Plex Mono", monospace; font-size: 16px; letter-spacing: 0.02em; }
+    #ds-input::placeholder { color: #4d6f7d; }
+    #ds-count { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #7a97a3;
+      white-space: nowrap; }
+    #ds-results { max-height: min(56vh, 520px); overflow-y: auto; margin: 0; padding: 6px;
+      list-style: none; }
+    #ds-results li { margin: 0; padding: 0; }
+    #ds-results li::before { display: none; }
+    .ds-hit { display: grid; grid-template-columns: 44px 1fr; gap: 12px; width: 100%;
+      text-align: left; background: transparent; border: 0; border-radius: 7px;
+      padding: 9px 12px; cursor: pointer; color: inherit; font: inherit; }
+    .ds-hit:hover, .ds-hit.sel { background: rgba(45, 212, 191, 0.10); }
+    .ds-hit.sel { outline: 1px solid rgba(45, 212, 191, 0.55); }
+    .ds-num { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #4d6f7d;
+      padding-top: 2px; }
+    .ds-title { display: block; font-size: 14.5px; font-weight: 600; color: #e8f1f2; }
+    .ds-part { display: block; font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.08em; color: #2dd4bf; margin-top: 2px; }
+    .ds-snip { display: block; font-size: 12.5px; line-height: 1.45; color: #7a97a3;
+      margin-top: 4px; }
+    .ds-snip mark, .ds-title mark { background: rgba(244, 162, 97, 0.22); color: #f4a261;
+      border-radius: 2px; padding: 0 1px; }
+    #ds-empty { padding: 22px 18px; color: #7a97a3; font-size: 13.5px; }
+    #ds-foot { display: flex; gap: 18px; padding: 9px 18px; border-top: 1px solid #17303f;
+      font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #4d6f7d; }
+    #ds-foot b { color: #7a97a3; font-weight: 500; }
+    #ds-open { position: fixed; left: 14px; bottom: 12px; z-index: 2000; width: 34px; height: 34px;
+      border-radius: 50%; border: 1px solid #17303f; background: rgba(13, 28, 41, 0.75);
+      color: #7a97a3; cursor: pointer; font-size: 13px; line-height: 1; }
+    #ds-open:hover { color: #2dd4bf; border-color: #2dd4bf; }
+    .reveal mark.ds-hit-mark { background: rgba(244, 162, 97, 0.3); color: inherit;
+      border-radius: 2px; box-shadow: 0 0 0 1px rgba(244, 162, 97, 0.55); }
+    @media print { #deck-search, #ds-open { display: none !important; } }
+  </style>
 </head>
 <body>
   <div class="reveal">
@@ -1941,6 +1990,243 @@
         restartMatchedFilterAnimation();
       }
     });
+  </script>
+
+  <button id="ds-open" title="Search the deck (/)"><i class="fa-solid fa-magnifying-glass"></i></button>
+  <div id="deck-search" role="dialog" aria-label="Search slides">
+    <div id="ds-box">
+      <div id="ds-field">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="ds-input" type="text" autocomplete="off" spellcheck="false"
+               placeholder="search topics, keywords, numbers, function names...">
+        <span id="ds-count"></span>
+      </div>
+      <ul id="ds-results"></ul>
+      <div id="ds-empty" hidden></div>
+      <div id="ds-foot">
+        <span><b>&uarr;&darr;</b> select</span><span><b>&crarr;</b> go</span>
+        <span><b>esc</b> close</span><span><b>/</b> or <b>ctrl+F</b> reopen</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Deck search: builds a text index over every slide once reveal is ready,
+  // then filters it on each keystroke. Slides that are not current are
+  // display:none, so the browser's own find cannot see them -- which is why
+  // ctrl+F is taken over here.
+  (function () {
+    var overlay = document.getElementById('deck-search');
+    var input = document.getElementById('ds-input');
+    var listEl = document.getElementById('ds-results');
+    var countEl = document.getElementById('ds-count');
+    var emptyEl = document.getElementById('ds-empty');
+    var index = [], results = [], sel = 0, isOpen = false, clearTimer = null;
+
+    function slideText(section) {
+      var clone = section.cloneNode(true);
+      // Drop the heading (indexed separately, so snippets do not just repeat
+      // the title) and anything with no readable text.
+      clone.querySelectorAll('script, style, canvas, h1, h2').forEach(function (n) { n.remove(); });
+      // Strip tags rather than read textContent, so text in adjacent elements
+      // gets a separator instead of running together ("...peaks at 3Very...").
+      var tmp = document.createElement('div');
+      tmp.innerHTML = clone.innerHTML.replace(/<[^>]+>/g, ' ');
+      return tmp.textContent.replace(/\s+/g, ' ').trim();
+    }
+
+    // Chart series names live in the JSON inside HTML comments, so they are
+    // invisible to textContent -- pull the "label" fields in so a search for
+    // "ast_linear_probe" or "pink" finds the chart slides too.
+    function chartLabels(section) {
+      var out = [], walker = document.createTreeWalker(section, NodeFilter.SHOW_COMMENT), m;
+      while (walker.nextNode()) {
+        var re = /"label"\s*:\s*"([^"]+)"/g, v = walker.currentNode.nodeValue;
+        while ((m = re.exec(v))) out.push(m[1]);
+      }
+      return out.join(' ');
+    }
+
+    function buildIndex() {
+      var part = '';
+      index = Reveal.getSlides().map(function (s, i) {
+        var divider = s.querySelector('.divider-index');
+        if (divider) part = divider.textContent.trim();
+        var heading = s.querySelector('h1, h2');
+        var title = heading ? heading.textContent.trim() : (divider ? divider.textContent.trim() : 'Slide ' + (i + 1));
+        var body = slideText(s), labels = chartLabels(s);
+        return { el: s, n: i + 1, title: title, part: part, body: body,
+                 titleLower: title.toLowerCase(), partLower: part.toLowerCase(),
+                 bodyLower: (body + ' ' + labels).toLowerCase() };
+      });
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+    function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+    function markUp(text, terms) {
+      var out = escapeHtml(text);
+      terms.forEach(function (t) {
+        out = out.replace(new RegExp('(' + escapeRe(escapeHtml(t)) + ')', 'gi'), '<mark>$1</mark>');
+      });
+      return out;
+    }
+
+    function snippet(entry, terms) {
+      var at = -1;
+      for (var i = 0; i < terms.length && at < 0; i++) at = entry.bodyLower.indexOf(terms[i]);
+      if (at < 0) return entry.body.slice(0, 140) + (entry.body.length > 140 ? '...' : '');
+      var from = Math.max(0, at - 55), to = Math.min(entry.body.length, at + 105);
+      return (from > 0 ? '...' : '') + entry.body.slice(from, to) + (to < entry.body.length ? '...' : '');
+    }
+
+    function search(query) {
+      var terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!terms.length) return [];
+      return index.map(function (e) {
+        var score = 0;
+        for (var i = 0; i < terms.length; i++) {
+          var t = terms[i], hit = 0;
+          if (e.titleLower.indexOf(t) >= 0) hit += 6;
+          if (e.partLower.indexOf(t) >= 0) hit += 2;
+          if (e.bodyLower.indexOf(t) >= 0) hit += 1;
+          if (!hit) return null;          // every term must appear somewhere
+          score += hit;
+        }
+        return { e: e, score: score };
+      }).filter(Boolean).sort(function (a, b) {
+        return b.score - a.score || a.e.n - b.e.n;
+      }).map(function (r) { return r.e; });
+    }
+
+    function render(terms) {
+      listEl.innerHTML = '';
+      countEl.textContent = results.length ? results.length + (results.length === 1 ? ' slide' : ' slides') : '';
+      emptyEl.hidden = !(input.value.trim() && !results.length);
+      emptyEl.textContent = 'No slide contains all of those terms.';
+      results.forEach(function (e, i) {
+        var li = document.createElement('li');
+        var b = document.createElement('button');
+        b.className = 'ds-hit' + (i === sel ? ' sel' : '');
+        b.innerHTML = '<span class="ds-num">' + e.n + '</span><span><span class="ds-title">' +
+          markUp(e.title, terms) + '</span><span class="ds-part">' + escapeHtml(e.part) +
+          '</span><span class="ds-snip">' + markUp(snippet(e, terms), terms) + '</span></span>';
+        b.addEventListener('click', function () { go(i); });
+        li.appendChild(b);
+        listEl.appendChild(li);
+      });
+    }
+
+    function clearMarks() {
+      document.querySelectorAll('mark.ds-hit-mark').forEach(function (m) {
+        var parent = m.parentNode;
+        parent.replaceChild(document.createTextNode(m.textContent), m);
+        parent.normalize();
+      });
+    }
+
+    // Wrap matches on the slide we land on, so the hit is visible without
+    // hunting. Text nodes only -- never touches a canvas or a script.
+    function highlight(section, terms) {
+      clearMarks();
+      if (!terms.length) return;
+      var re = new RegExp('(' + terms.map(escapeRe).join('|') + ')', 'gi');
+      var walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (n) {
+          var tag = n.parentNode && n.parentNode.nodeName;
+          if (!n.nodeValue.trim() || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CANVAS' || tag === 'MARK')
+            return NodeFilter.FILTER_REJECT;
+          return re.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      });
+      var nodes = [], node;
+      while ((node = walker.nextNode())) nodes.push(node);
+      nodes.forEach(function (n) {
+        var frag = document.createDocumentFragment(), last = 0, m;
+        re.lastIndex = 0;
+        while ((m = re.exec(n.nodeValue))) {
+          frag.appendChild(document.createTextNode(n.nodeValue.slice(last, m.index)));
+          var mark = document.createElement('mark');
+          mark.className = 'ds-hit-mark';
+          mark.textContent = m[0];
+          frag.appendChild(mark);
+          last = m.index + m[0].length;
+        }
+        frag.appendChild(document.createTextNode(n.nodeValue.slice(last)));
+        n.parentNode.replaceChild(frag, n);
+      });
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(clearMarks, 6000);
+    }
+
+    function go(i) {
+      var e = results[i];
+      if (!e) return;
+      var terms = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+      close();
+      var idx = Reveal.getIndices(e.el);
+      Reveal.slide(idx.h, idx.v);
+      setTimeout(function () { highlight(e.el, terms); }, 60);
+    }
+
+    function move(delta) {
+      if (!results.length) return;
+      sel = (sel + delta + results.length) % results.length;
+      var terms = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+      render(terms);
+      var active = listEl.querySelector('.ds-hit.sel');
+      if (active) active.scrollIntoView({ block: 'nearest' });
+    }
+
+    function open() {
+      if (!index.length) buildIndex();
+      isOpen = true;
+      overlay.classList.add('open');
+      Reveal.configure({ keyboard: false });   // let the field have the keys
+      input.select();
+      input.focus();
+      update();
+    }
+    function close() {
+      isOpen = false;
+      overlay.classList.remove('open');
+      Reveal.configure({ keyboard: true });
+    }
+    function update() {
+      var q = input.value.trim();
+      var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+      results = search(q);
+      sel = 0;
+      render(terms);
+    }
+
+    input.addEventListener('input', update);
+    document.getElementById('ds-open').addEventListener('click', open);
+    overlay.addEventListener('mousedown', function (ev) { if (ev.target === overlay) close(); });
+
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); move(1); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); move(-1); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); go(sel); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); close(); }
+      ev.stopPropagation();
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      var typing = /^(INPUT|TEXTAREA)$/.test(ev.target.nodeName) || ev.target.isContentEditable;
+      if ((ev.key === 'f' || ev.key === 'F') && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault(); isOpen ? input.select() : open(); return;
+      }
+      if (!isOpen && !typing && ev.key === '/') { ev.preventDefault(); open(); }
+    }, true);
+
+    if (window.Reveal && Reveal.isReady && Reveal.isReady()) buildIndex();
+    else Reveal.on('ready', buildIndex);
+  }());
   </script>
 </body>
 </html>

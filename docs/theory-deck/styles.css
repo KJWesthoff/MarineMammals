@@ -160,9 +160,15 @@
   padding: 0 !important;
 }
 
-/* Content area - fills remaining space */
+/* Content area - fills remaining space.
+   min-height: 0 matters: without it this flex item cannot shrink below its
+   content, so anything that sizes itself from its parent (a Chart.js canvas
+   with maintainAspectRatio:false) feeds its own height back into the layout
+   every time reveal.js rescales the deck, and the slide grows off the bottom
+   of the frame at any window size other than exactly 1280x720. */
 .reveal .slides section > .content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
