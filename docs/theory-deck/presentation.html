@@ -1263,6 +1263,492 @@
         </div>
       </section>
 
+      <section id="divider-7" class="section-divider" data-state="is-section-divider">
+        <div class="divider-index">Part 7 &middot; Notebook 01 &middot; Exercises 1&ndash;10</div>
+        <h1>What the Measurements Said</h1>
+        <p>Ten exercises, each run to a number. The ones that changed this deck are the ones that failed.</p>
+        <div style="margin-top: 28px; display: flex; gap: 10px;">
+          <span class="pill">guards</span>
+          <span class="pill">controls</span>
+          <span class="pill">two metrics</span>
+          <span class="pill amber">independent cross-checks</span>
+        </div>
+      </section>
+
+      <section id="slide-ex-map">
+        <h2>Ten Exercises, Ten Verdicts</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:13.5pt; margin:2px 0 6px; color:var(--muted-color);">Each one starts from a plausible hypothesis. <strong>Eight of the ten overturn it</strong> &mdash; and that is the content.</p>
+          <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; flex:1; min-height:0;">
+
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>1 &middot; More mel bins, sharper picture?</strong> <span class="pill rose" style="margin-left:6px;">no</span><br><span style="color:var(--muted-color);">At 100 bins, 19 filters draw on a single FFT bin. The window, not the bin count, sets resolution.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>2 &middot; Count the humpback's harmonics</strong> <span class="pill amber" style="margin-left:6px;">one is not the whale</span><br><span style="color:var(--muted-color);">A 60.8&nbsp;Hz line at 46&times; the median, in every frame: mains hum.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>3 &middot; What can't this pipeline see?</strong> <span class="pill" style="margin-left:6px;">confirmed</span><br><span style="color:var(--muted-color);">Everything above 8&nbsp;kHz &mdash; and only 15 of 64 mel rows cover 4&ndash;8&nbsp;kHz.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>4 &middot; Do dolphin click rates differ?</strong> <span class="pill rose" style="margin-left:6px;">not measurably</span><br><span style="color:var(--muted-color);">7 of 2,647 orca clips yield a rate at all, and it lands inside the sperm whale range.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px; border-color:var(--primary-color);">
+              <p style="margin:0; font-size:11.5pt;"><strong>5 &middot; Is the detector a tape detector?</strong> <span class="pill rose" style="margin-left:6px;">no &mdash; control</span><br><span style="color:var(--muted-color);">Real for one template (0.45 vs 0.73); a coin flip over 42 of them.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>6 &middot; Does a bigger bank separate better?</strong> <span class="pill rose" style="margin-left:6px;">peaks at 3</span><br><span style="color:var(--muted-color);">Variance collapses; the click/not-click gap narrows from 0.43 to 0.34.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>7 &middot; Where does 0.6 come from?</strong> <span class="pill amber" style="margin-left:6px;">findable</span><br><span style="color:var(--muted-color);">It is the CV minimum of a known click train &mdash; but the curves cross at 0.425.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>8 &middot; Shorten the refractory for a buzz</strong> <span class="pill rose" style="margin-left:6px;">changes nothing</span><br><span style="color:var(--muted-color);">The template width was the real ceiling all along.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>9 &middot; A better pulse-averaging rule?</strong> <span class="pill rose" style="margin-left:6px;">no</span><br><span style="color:var(--muted-color);">The templates correlate at 0.999. One dot product would have said so.</span></p>
+            </div>
+            <div class="panel" style="padding:6px 12px;">
+              <p style="margin:0; font-size:11.5pt;"><strong>10 &middot; Does it generalize across species?</strong> <span class="pill rose" style="margin-left:6px;">no</span><br><span style="color:var(--muted-color);">A KillerWhale bank scores KillerWhale clips worst of six species.</span></p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-123">
+        <h2>Ex 1&ndash;3 &middot; The Representation's Own Limits</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:14pt; margin:4px 0 12px;">Three exercises about what the front end can and cannot carry, before any model sees it. All three are answered by arithmetic on the transform, not by training anything.</p>
+
+          <div style="display:grid; grid-template-columns: 1.15fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Ex 1 &mdash; more mel bins than the STFT can feed</div>
+              <p style="margin:8px 0 6px; font-size:13pt;"><span class="mono">n_fft=400</span> at 16&nbsp;kHz gives 201 linear bins, one every <strong>40&nbsp;Hz</strong>. Mel bins below that width have nothing of their own to average.</p>
+              <table class="metric-table">
+                <tr><th><span class="mono">n_mels</span></th><th>empty</th><th>fed by 1 bin</th><th>first clean row</th></tr>
+                <tr><td>32</td><td class="good">0</td><td class="good">0</td><td>~60&nbsp;Hz</td></tr>
+                <tr><td>64 <span style="color:var(--muted-color);">(default)</span></td><td class="good">0</td><td>3</td><td>550&nbsp;Hz</td></tr>
+                <tr><td>100</td><td class="bad">1</td><td class="bad">19</td><td>1.2&nbsp;kHz</td></tr>
+                <tr><td>128</td><td class="bad">4</td><td class="bad">35</td><td>1.5&nbsp;kHz</td></tr>
+              </table>
+              <p style="margin:10px 0 0; font-size:13pt;">Those single-bin rows are the striping you see at the bottom of a 100-bin spectrogram. <strong>The fix is a longer window, not more bins</strong> &mdash; resolution the STFT never captured cannot be interpolated back.</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px; min-height:0;">
+              <div class="panel" style="border-color: var(--secondary-color);">
+                <div class="panel-label" style="color:var(--secondary-color);">Ex 2 &mdash; the lowest &ldquo;harmonic&rdquo; is not the whale</div>
+                <p style="margin:8px 0 0; font-size:13pt;">Zooming <span class="mono">58018011</span> to 0&ndash;1&nbsp;kHz shows a stack of lines. One of them, at <strong>60.8&nbsp;Hz</strong>, sits <strong>46&times;</strong> above the 40&ndash;2000&nbsp;Hz median and is present in <em>every</em> frame &mdash; mains hum on an analogue tape. The whale's own energy moves (281&rarr;578&rarr;500&nbsp;Hz across the clip), so a spacing read off a whole-clip average is not a harmonic spacing at all.</p>
+              </div>
+              <div class="panel" style="border-color: var(--tertiary-color);">
+                <div class="panel-label" style="color:var(--tertiary-color);">Ex 3 &mdash; two ceilings, not one</div>
+                <p style="margin:8px 0 0; font-size:13pt;">Resampling to 16&nbsp;kHz discards everything above <strong>8&nbsp;kHz</strong>, where most odontocete clicks live. Then the mel warp spends <strong>22 of 64</strong> rows below 1&nbsp;kHz and leaves <strong>15</strong> for the whole 4&ndash;8&nbsp;kHz octave, at ~650&nbsp;Hz per row. The band that survives Nyquist is also the band mel compresses hardest.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-4">
+        <h2>Ex 4 &middot; Screen for the Clip, Don't Pick It</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:12.5pt; margin:2px 0 8px;">Take the first <span class="mono">BottlenoseDolphin</span> and <span class="mono">KillerWhale</span> clips in the manifest, read their DEMON peaks, compare to the sperm whale: that is the intended exercise, and it produces a confident wrong answer. A clip earns a click rate only when <strong>two independent computations agree</strong>.</p>
+
+          <div style="display:grid; grid-template-columns: 1fr 1.1fr; gap:18px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color); padding:13px 17px;">
+              <div class="panel-label">The screen</div>
+              <p style="margin:8px 0 8px; font-size:12.5pt;"><span class="mono">DEMON</span> peak &nbsp;vs&nbsp; <span class="mono">matched filter &rarr; pulse_train_stats</span> rate &mdash; agree within 15%; plus &ge;20 detections, on-pulse &ge;&nbsp;0.6, CV &le;&nbsp;0.5, and no peak at 50/60&nbsp;Hz.</p>
+              <table class="metric-table">
+                <tr><th>species</th><th>clips</th><th>scorable</th><th>survive</th></tr>
+                <tr><td>BottlenoseDolphin</td><td>183</td><td>46</td><td class="bad">0</td></tr>
+                <tr><td>KillerWhale</td><td>2,647</td><td>1,408</td><td class="bad">7</td></tr>
+                <tr><td>SpermWhale <span style="color:var(--muted-color);">(ref)</span></td><td>1,379</td><td>869</td><td>30</td></tr>
+              </table>
+              <p style="margin:10px 0 0; font-size:12.5pt; color:var(--muted-color);">Of the 1,408 scorable orca clips, 1,331 are rejected because the two rate estimates disagree and 1,373 because CV &gt; 0.5.</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px; min-height:0;">
+              <div class="panel" style="padding:13px 17px;">
+                <div class="panel-label">The rates that survive</div>
+                <table class="metric-table" style="margin-top:8px;">
+                  <tr><th></th><th>range</th><th>median</th></tr>
+                  <tr><td>KillerWhale</td><td>21.7&ndash;37.0&nbsp;Hz</td><td>21.7</td></tr>
+                  <tr><td>SpermWhale</td><td>19.6&ndash;55.6&nbsp;Hz</td><td>25.3</td></tr>
+                </table>
+                <p style="margin:10px 0 0; font-size:12.5pt;">The orca range sits <strong>inside</strong> the sperm whale range. Click rate alone does not separate them.</p>
+              </div>
+              <div class="panel" style="border-color: var(--tertiary-color); padding:13px 17px;">
+                <span class="pill rose">the number that matters</span>
+                <p style="margin:8px 0 0; font-size:12.5pt;"><strong>7 usable clips out of 2,647.</strong> A feature computable on 0.3% of a species' recordings is not a feature a classifier can use, however clean those seven look. And <span class="mono">BottlenoseDolphin</span> yields none: its clicks are above the 8&nbsp;kHz ceiling, so what remains is call repetition at ~6&nbsp;Hz, which is why the two estimates disagree by several hundred percent on every clip.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-5">
+        <h2>Ex 5 &middot; The Control, Run to 42 Templates</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:12pt; margin:2px 0 6px;">Part 3 showed this control at three templates. The exercise runs it at <strong>42</strong> &mdash; one per tape, each scored against all 1,379 SpermWhale clips. If the same-tape advantage were about the template <em>matching</em> its tape, every point would sit below the diagonal.</p>
+
+          <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div style="position:relative; height:450px; min-width:0;">
+              <canvas data-chart="scatter">
+              <!--
+              {
+                "data": {
+                  "datasets": [
+                    { "label": "one template per tape", "data": [
+                      {"x":0.74,"y":0.41},{"x":0.75,"y":0.50},{"x":0.75,"y":0.51},{"x":0.82,"y":0.60},
+                      {"x":0.87,"y":0.65},{"x":0.75,"y":0.60},{"x":0.77,"y":0.65},{"x":0.74,"y":0.63},
+                      {"x":0.73,"y":0.62},{"x":0.73,"y":0.64},{"x":0.79,"y":0.70},{"x":0.76,"y":0.68},
+                      {"x":0.97,"y":0.90},{"x":0.73,"y":0.65},{"x":0.76,"y":0.71},{"x":0.74,"y":0.69},
+                      {"x":0.75,"y":0.71},{"x":0.76,"y":0.73},{"x":0.73,"y":0.70},{"x":0.82,"y":0.80},
+                      {"x":0.75,"y":0.74},{"x":0.75,"y":0.76},{"x":0.73,"y":0.73},{"x":0.73,"y":0.74},
+                      {"x":0.87,"y":0.89},{"x":0.78,"y":0.80},{"x":0.74,"y":0.75},{"x":0.76,"y":0.78},
+                      {"x":0.75,"y":0.78},{"x":0.76,"y":0.79},{"x":0.73,"y":0.79},{"x":0.71,"y":0.79},
+                      {"x":0.73,"y":0.81},{"x":0.73,"y":0.82},{"x":0.72,"y":0.81},{"x":0.74,"y":0.84},
+                      {"x":0.72,"y":0.83},{"x":0.72,"y":0.92},{"x":0.72,"y":0.93} ],
+                      "backgroundColor": "#7a97a3", "pointRadius": 5 },
+                    { "label": "7501101V — the notebook's template", "data": [{"x":0.73,"y":0.45}],
+                      "backgroundColor": "#f4a261", "pointRadius": 9, "pointStyle": "rectRot" },
+                    { "label": "equal — no matching effect", "data": [{"x":0.40,"y":0.40},{"x":1.0,"y":1.0}],
+                      "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "showLine": true,
+                      "pointRadius": 0, "borderDash": [6,4], "borderWidth": 2 }
+                  ]
+                },
+                "options": {
+                  "maintainAspectRatio": false,
+                  "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                  "scales": {
+                    "x": { "type": "linear", "min": 0.65, "max": 1.0, "title": { "display": true, "text": "median CV on OTHER tapes" } },
+                    "y": { "min": 0.35, "max": 1.0, "title": { "display": true, "text": "median CV on its OWN tape" } }
+                  }
+                }
+              }
+              -->
+              </canvas>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:7px; justify-content:center; min-height:0;">
+              <div class="panel" style="padding:8px 14px;">
+                <p style="margin:0; font-size:12pt;"><strong>The effect is real for one template.</strong> Same tape: CV <span class="mono" style="color:var(--primary-color);">0.45</span> (n=59). Other tapes: <span class="mono">0.73</span> (n=812).</p>
+              </div>
+              <div class="panel" style="padding:8px 14px; border-color: var(--primary-color);">
+                <p style="margin:0; font-size:12pt;"><strong>It is a coin flip over 42.</strong> Median same-tape advantage <span class="mono">+0.03</span>; positive for <strong>22 of 40</strong>. The notebook's template is the 2nd largest of them &mdash; its tape is one of the easy ones, not a typical one.</p>
+              </div>
+              <div class="panel" style="padding:8px 14px;">
+                <p style="margin:0; font-size:12pt;">The spread is in the wrong axis for a matching effect: own-tape CV spans <span class="mono">0.41&ndash;0.93</span>, foreign-tape CV barely moves (<span class="mono">0.71&ndash;0.97</span>, IQR 0.73&ndash;0.76). <strong>Which tape you score matters; which template you use does not.</strong></p>
+              </div>
+              <div class="panel" style="padding:8px 14px; border-color: var(--tertiary-color);">
+                <span class="pill rose">the trap the exercise names</span>
+                <p style="margin:6px 0 0; font-size:12pt;">Filtering on on-pulse before comparing reports 0.36 vs 0.72 &mdash; a bigger effect, from deleting cross-tape clips preferentially (n 812&rarr;320 against 59&rarr;43). Compare distributions, not best-of-N.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-5b">
+        <h2>Ex 5, Extension &middot; When Two Correlations Disagree</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:14pt; margin:4px 0 12px;">If tape identity does not pick a good template, does the candidate's own DEMON peak prominence? Rank 42 templates by it, correlate against how well each one travels to foreign tapes (lower CV = better).</p>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label">Two coefficients, one dataset</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th></th><th>all 42</th><th>minus one point</th></tr>
+                <tr><td>Pearson <span class="mono">r</span></td><td class="bad">+0.63</td><td>&minus;0.15</td></tr>
+                <tr><td>Spearman <span class="mono">&rho;</span></td><td>&minus;0.13</td><td>&minus;0.21</td></tr>
+              </table>
+              <p style="margin:12px 0 0; font-size:13pt;">Pearson says &ldquo;more prominent &rarr; worse detector&rdquo;, which would be a genuinely surprising result worth writing up. Spearman, which sees only the ranking, says there is nothing there. <strong>The whole coefficient is one leverage point</strong>, and heavy-tailed predictors produce this routinely.</p>
+              <p style="margin:10px 0 0; font-size:13pt;">Report both. The gap between them <em>is</em> the finding.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--tertiary-color);">
+              <div class="panel-label" style="color:var(--tertiary-color);">The point: record <span class="mono">95001004</span></div>
+              <p style="margin:8px 0 8px; font-size:13pt;">60 seconds that sound like static &mdash; 94% of the energy below 2&nbsp;kHz, flat hiss above it. Its envelope carries the highest &ldquo;click train&rdquo; prominence in the entire species, and the worst cross-tape CV of the 42 (0.97).</p>
+              <table class="metric-table">
+                <tr><th>envelope modulation</th><th>60</th><th>120</th><th>180</th><th>240&nbsp;Hz</th></tr>
+                <tr><td>&times; median</td><td>220</td><td>510</td><td>161</td><td class="bad">734</td></tr>
+              </table>
+              <p style="margin:11px 0 0; font-size:13pt;">An exact comb at multiples of 60.00&nbsp;Hz. A sinusoidal hum would put energy at <em>one</em> frequency; a comb means <strong>impulses, 60 a second</strong> &mdash; mains-locked electrical interference. DEMON did its job perfectly. The pulse train was a power line.</p>
+              <p style="margin:9px 0 0; font-size:12.5pt; color:var(--muted-color);">The tape's own recorded hum sits at 57.9&nbsp;Hz &mdash; off-speed playback &mdash; so the exact-60&nbsp;Hz comb entered later, in the digitizing chain.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-6">
+        <h2>Ex 6 &middot; What a Template Bank Actually Buys</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:13.5pt; margin:2px 0 10px;">Grow the bank from 1 to 10 templates, one per tape, none sharing a tape with the test clips. Each size is evaluated over <strong>12 random subsets</strong>, because &ldquo;the bank of four&rdquo; depends on which four.</p>
+
+          <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div style="position:relative; height:450px; min-width:0;">
+              <canvas data-chart="line">
+              <!--
+              {
+                "data": {
+                  "labels": ["1","2","3","4","5","6","7","8","9","10"],
+                  "datasets": [
+                    { "label": "SpermWhale · same tape as the template", "data": [0.58,0.39,0.29,0.28,0.28,0.29,0.30,0.30,0.30,0.31], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.25, "borderWidth": 3 },
+                    { "label": "SpermWhale · a different tape", "data": [0.56,0.51,0.45,0.43,0.44,0.44,0.44,0.43,0.44,0.43], "borderColor": "#7a97a3", "backgroundColor": "#7a97a3", "fill": false, "tension": 0.25 },
+                    { "label": "HumpbackWhale · not a click train", "data": [0.87,0.75,0.72,0.69,0.68,0.65,0.65,0.64,0.64,0.64], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.25, "borderWidth": 3 }
+                  ]
+                },
+                "options": {
+                  "maintainAspectRatio": false,
+                  "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                  "elements": { "point": { "radius": 3 } },
+                  "scales": {
+                    "y": { "min": 0.2, "max": 0.95, "title": { "display": true, "text": "mean CV of detection gaps" } },
+                    "x": { "title": { "display": true, "text": "templates in the bank" } }
+                  }
+                }
+              }
+              -->
+              </canvas>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:11px; justify-content:center; min-height:0;">
+              <div class="panel" style="padding:12px 16px; border-color: var(--primary-color);">
+                <p style="margin:0; font-size:13pt;"><strong>The gamble disappears by k=3.</strong> A single template scores the same-tape clip anywhere in <span class="mono">0.28&ndash;1.14</span> depending on which one you drew; at k=4 the spread is <span class="mono">0.24&ndash;0.33</span>. That variance reduction is the entire benefit &mdash; and you cannot pick the good template in advance (Ex 5).</p>
+              </div>
+              <div class="panel" style="padding:12px 16px; border-color: var(--tertiary-color);">
+                <p style="margin:0; font-size:13pt;"><strong>Separability peaks at three.</strong> The click/not-click CV gap runs 0.43 (k=3) &rarr; 0.41 (k=4) &rarr; <span class="mono" style="color:var(--tertiary-color);">0.34</span> (k=10). The humpback keeps improving after the sperm whale has stopped: more templates means more chances to fire, and denser false detections are more evenly spaced.</p>
+              </div>
+              <div class="panel" style="padding:12px 16px;">
+                <p style="margin:0; font-size:13pt;"><strong>And the second metric pays for it.</strong> On-pulse falls 84%&rarr;72% on the same-tape clip and 18%&rarr;11% on the different-tape one. CV alone would have called k=10 the best bank here.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-7">
+        <h2>Ex 7 &middot; Sweeping the Threshold Nobody Justified</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:13pt; margin:2px 0 8px;"><span class="mono">DETECTION_THRESHOLD = 0.6</span> was set by hand. Sweep it on a real click train and on the humpback clip, same template.</p>
+
+          <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div style="display:flex; flex-direction:column; min-height:0; min-width:0;">
+              <div style="position:relative; height:405px; min-width:0;">
+              <canvas data-chart="line">
+              <!--
+              {
+                "data": {
+                  "labels": ["0.30","0.35","0.40","0.45","0.50","0.55","0.60","0.65","0.70","0.75","0.80","0.85"],
+                  "datasets": [
+                    { "label": "SpermWhale 7501101R — a click train", "data": [0.29,0.30,0.29,0.29,0.25,0.24,0.20,0.30,0.88,1.36,null,null], "borderColor": "#2dd4bf", "backgroundColor": "#2dd4bf", "fill": false, "tension": 0.2, "borderWidth": 3 },
+                    { "label": "HumpbackWhale 58018011 — not one", "data": [0.25,0.26,0.26,0.35,0.51,0.53,0.68,0.90,1.10,1.48,1.45,1.20], "borderColor": "#f4a261", "backgroundColor": "#f4a261", "fill": false, "tension": 0.2, "borderWidth": 3 }
+                  ]
+                },
+                "options": {
+                  "maintainAspectRatio": false,
+                  "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                  "elements": { "point": { "radius": 3 } },
+                  "scales": {
+                    "y": { "beginAtZero": true, "max": 1.6, "title": { "display": true, "text": "CV of detection gaps" } },
+                    "x": { "title": { "display": true, "text": "detection threshold  (dashed line = the hand-set 0.6)" } }
+                  }
+                }
+              }
+              -->
+              </canvas>
+              </div>
+              <p class="fig-caption" style="margin:6px 0 0;">Missing points past 0.75 are the 20-detection guard: the clip stops reporting rather than reporting from four detections.</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:7px; justify-content:center; min-height:0;">
+              <div class="panel" style="padding:8px 14px; border-color: var(--tertiary-color);">
+                <p style="margin:0; font-size:12pt;"><strong>The curves cross at ~0.425.</strong> Below it the humpback is the <em>more</em> metronomic clip (0.25 vs 0.29). Fire on everything and the detections are evenly spaced by construction &mdash; a threshold set too low <em>inverts</em> the statistic rather than weakening it.</p>
+              </div>
+              <div class="panel" style="padding:8px 14px;">
+                <p style="margin:0; font-size:12pt;"><strong>The widest gap is not the best setting.</strong> It peaks at 0.78 near threshold 0.675 &mdash; where the sperm whale's own CV has already risen from 0.20 to 0.28, on its way to 0.88 at 0.70. The gap grows because both clips are failing, the humpback faster.</p>
+              </div>
+              <div class="panel" style="padding:8px 14px; border-color: var(--primary-color);">
+                <span class="pill amber">so where does 0.6 come from</span>
+                <p style="margin:6px 0 0; font-size:12pt;"><strong>Findable blind:</strong> it minimizes the CV of a clip you already trust as a click train (0.20, on-pulse 0.91) &mdash; no negative class needed. <strong>CFAR cannot help here:</strong> it calibrates on <em>noise-only</em> data, and the humpback is a different signal, still firing 22.5&times;/s at 0.6. Calibrating against it lands at ~0.85, where the click train reports nothing.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-8">
+        <h2>Ex 8 &middot; Every Hand-Set Timescale Is a Ceiling</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:14pt; margin:4px 0 10px;"><span class="mono">detect_peaks</span> enforces a 15&nbsp;ms refractory, so nothing above <strong>66.7&nbsp;Hz</strong> can be reported. Take a <span class="mono">CommonDolphin</span> clip whose DEMON peak sits at <strong>77.4&nbsp;Hz</strong> &mdash; above that ceiling &mdash; and shorten the refractory to match.</p>
+
+          <div style="display:grid; grid-template-columns: 1.1fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column;">
+              <div class="panel-label"><span class="mono">5702600M</span> &mdash; 1.8s, DEMON peak 77.4&nbsp;Hz at 14&times; the median</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th>template</th><th>refractory</th><th>n</th><th>rate</th><th>CV</th><th>on&nbsp;pulse</th></tr>
+                <tr><td>25&nbsp;ms</td><td>15&nbsp;ms</td><td>45</td><td class="bad">28.2</td><td>0.41</td><td>100%</td></tr>
+                <tr><td>25&nbsp;ms</td><td>8&nbsp;ms</td><td>45</td><td class="bad">28.2</td><td>0.41</td><td>100%</td></tr>
+                <tr><td>25&nbsp;ms</td><td>5&nbsp;ms</td><td>45</td><td class="bad">28.2</td><td>0.41</td><td>100%</td></tr>
+                <tr><td>25&nbsp;ms</td><td>3&nbsp;ms</td><td>45</td><td class="bad">28.2</td><td>0.41</td><td>100%</td></tr>
+                <tr><td>8&nbsp;ms</td><td>15&nbsp;ms</td><td>80</td><td>47.6</td><td>0.25</td><td>68%</td></tr>
+                <tr><td>8&nbsp;ms</td><td>8&nbsp;ms</td><td>122</td><td class="good">71.4</td><td>0.28</td><td>57%</td></tr>
+                <tr><td>8&nbsp;ms</td><td>5&nbsp;ms</td><td>168</td><td>100.0</td><td>0.42</td><td>62%</td></tr>
+                <tr><td>8&nbsp;ms</td><td>3&nbsp;ms</td><td>183</td><td>125.0</td><td>0.45</td><td>63%</td></tr>
+              </table>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:11px; justify-content:center; min-height:0;">
+              <div class="panel" style="padding:12px 16px; border-color: var(--tertiary-color);">
+                <p style="margin:0; font-size:13pt;"><strong>The refractory was never the constraint.</strong> Top four rows: 15&rarr;3&nbsp;ms changes nothing at all. The response to a 25&nbsp;ms template is smooth on a 25&nbsp;ms scale, so its local maxima are already further apart than 15&nbsp;ms. <strong>The template width is the real ceiling</strong> &mdash; about 40&nbsp;Hz.</p>
+              </div>
+              <div class="panel" style="padding:12px 16px;">
+                <p style="margin:0; font-size:13pt;">So the defaults report <span class="mono">28.2&nbsp;Hz</span> for a 77.4&nbsp;Hz modulation: a confident subharmonic. CV 0.41 and on-pulse 100% flag nothing &mdash; <strong>a wrong answer, not a missing one</strong>.</p>
+              </div>
+              <div class="panel" style="padding:12px 16px; border-color: var(--primary-color);">
+                <p style="margin:0; font-size:13pt;">Shorten both and the rate climbs without converging: 47.6 &rarr; 71.4 &rarr; 100 &rarr; 125&nbsp;Hz. Past ~8&nbsp;ms the detector is counting structure <em>inside</em> each burst. The only anchor is the independent computation: <span class="mono">71.4</span> against DEMON's <span class="mono">77.4</span>, 8% apart.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-9">
+        <h2>Ex 9 &middot; Check the Normalization Before You Sweep</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:12.5pt; margin:2px 0 8px;"><span class="mono">average_pulse_template</span> takes a plain mean of the envelope around the strongest pulses, so a loud near click contributes more shape than a faint distant one. Two fixes suggest themselves. Neither works, and the reason is one line of linear algebra.</p>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div class="panel" style="display:flex; flex-direction:column; padding:13px 17px;">
+              <div class="panel-label">250 cross-tape clips &times; 8 templates</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th>averaging rule</th><th>scorable</th><th>on&nbsp;pulse</th><th>CV</th></tr>
+                <tr><td>plain mean <span style="color:var(--muted-color);">(current)</span></td><td>61%</td><td>0.58</td><td>0.76</td></tr>
+                <tr><td>per-pulse normalized</td><td>61%</td><td>0.58</td><td>0.76</td></tr>
+                <tr><td>log-envelope mean</td><td class="bad">56%</td><td class="bad">0.56</td><td class="bad">0.82</td></tr>
+              </table>
+              <p style="margin:12px 0 0; font-size:12.5pt;">Per-pulse normalization is not slightly better or slightly worse. It is <strong>identical to three decimal places</strong>.</p>
+            </div>
+
+            <div class="panel" style="display:flex; flex-direction:column; border-color: var(--primary-color); padding:13px 17px;">
+              <div class="panel-label">Why &mdash; the variants of one template</div>
+              <table class="metric-table" style="margin-top:8px;">
+                <tr><th>template</th><th>plain &middot; per-pulse</th><th>plain &middot; log</th></tr>
+                <tr><td><span class="mono">9101200H</span></td><td class="mark">1.000</td><td>0.991</td></tr>
+                <tr><td><span class="mono">93582008</span></td><td class="mark">1.000</td><td>0.992</td></tr>
+                <tr><td><span class="mono">87009008</span></td><td class="mark">1.000</td><td>0.960</td></tr>
+                <tr><td><span class="mono">7501204M</span></td><td class="mark">0.999</td><td>0.986</td></tr>
+              </table>
+              <p style="margin:12px 0 0; font-size:12.5pt;"><span class="mono">matched_filter</span> is a <em>normalized</em> cross-correlation: it mean-removes and unit-normalizes both sides. Per-pulse normalization changes the template's amplitude, and amplitude is exactly what the detector already discards. The hypothesis assumed a detector that cares about scale.</p>
+              <p style="margin:10px 0 0; font-size:12.5pt;"><strong>One dot product answers this in a second</strong>; the sweep took twenty.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-10">
+        <h2>Ex 10 &middot; Does Any of It Generalize?</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <p style="font-size:13pt; margin:2px 0 8px;">A bank from <span class="mono">KillerWhale</span> (65 tapes, the most in the archive) against six species &mdash; and Part 3's SpermWhale bank against the same six. If these statistics detected a species, each bank would favour its own.</p>
+
+          <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:20px; flex:1; min-height:0;">
+
+            <div style="display:flex; flex-direction:column; min-height:0; min-width:0;">
+              <div style="position:relative; height:400px; min-width:0;">
+              <canvas data-chart="bar">
+              <!--
+              {
+                "data": {
+                  "labels": [["KillerWhale","(bank's own)"],["Sperm","whale"],["Common","dolphin"],["Pilot","whale"],["Humpback","whale"],["Fin","whale"]],
+                  "datasets": [
+                    { "label": "KillerWhale bank", "data": [0.37,0.44,0.65,0.49,0.62,0.70], "backgroundColor": "#2dd4bf" },
+                    { "label": "SpermWhale bank", "data": [0.33,0.41,0.61,0.44,0.60,0.69], "backgroundColor": "#f4a261" }
+                  ]
+                },
+                "options": {
+                  "maintainAspectRatio": false,
+                  "plugins": { "legend": { "position": "bottom", "labels": { "boxWidth": 12, "font": { "size": 10 } } } },
+                  "scales": {
+                    "y": { "beginAtZero": true, "max": 0.8, "title": { "display": true, "text": "median share of detections on a real pulse" } },
+                    "x": { "ticks": { "font": { "size": 9 } } }
+                  }
+                }
+              }
+              -->
+              </canvas>
+              </div>
+              <p class="fig-caption" style="margin:5px 0 0; font-size:10.5pt;">100 clips per species, tape-disjoint from the bank</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:7px; justify-content:center; min-height:0;">
+              <div class="panel" style="padding:8px 14px; border-color: var(--tertiary-color);">
+                <p style="margin:0; font-size:12pt;"><strong>The KillerWhale bank scores KillerWhale worst of the six</strong> (CV 0.60, on-pulse 0.37) and Fin whale best (0.50, 0.70). A bank built from a species does not prefer that species.</p>
+              </div>
+              <div class="panel" style="padding:8px 14px;">
+                <p style="margin:0; font-size:12pt;"><strong>The two banks are interchangeable.</strong> Per species their medians differ by 0.01&ndash;0.05 and both rank the panel the same way. These numbers are a property of the clip being scored, not of the bank &mdash; Ex 5's conclusion again, at bank level.</p>
+              </div>
+              <div class="panel" style="padding:8px 14px; border-color: var(--secondary-color);">
+                <p style="margin:0; font-size:12pt;">The two species with <strong>no echolocation clicks at all</strong> post the highest on-pulse fractions. CV and on-pulse do not say &ldquo;click train&rdquo;; they say &ldquo;dense, evenly spread transients&rdquo;, which a tonal moan with a sharp onset supplies just as well.</p>
+                <p style="margin:8px 0 0; font-size:12pt; color:var(--muted-color);"><span class="pill rose" style="margin-right:6px;">so the easy pair was easy</span> Part 3's separation (CV 0.29 vs 0.63) came from one unusually clean click train on tape 750110 against one particular humpback clip &mdash; both at the extremes of distributions that otherwise overlap.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section id="slide-ex-sum">
+        <h2>What the Ten Exercises Add Up To</h2>
+        <div class="content" style="padding-top:14px; min-height:0;">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-shield-halved" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Guard the statistic</strong><br>CV and on-pulse both drift <em>optimistic</em> as detections fall. Below 20, report nothing &mdash; or 0.3s fragments top every ranking.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-scale-balanced" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Two metrics, never one</strong><br>Ex 6 and Ex 8 each produce a CV that improves while the detector gets worse. The second metric is what catches it.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-code-compare" style="color:var(--primary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Cross-check independently</strong><br>DEMON and the matched filter compute a rate by unrelated routes. Agreement is the only evidence either one is right.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-flask" style="color:var(--secondary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Run the control</strong><br>&ldquo;Same tape scores better&rdquo; needed a foreign template to interpret. Three clips plus a mechanism is how a wrong conclusion gets made.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-chart-area" style="color:var(--secondary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Distributions, not best-of-N</strong><br>Filtering before comparing, or ranking groups of 59 against groups of 812 by their top 3, manufactures effects.</p>
+            </div>
+            <div class="panel" style="padding:12px 16px;">
+              <i class="fa-solid fa-plug-circle-bolt" style="color:var(--tertiary-color); font-size:13pt;"></i>
+              <p style="margin:6px 0 0; font-size:12.5pt; line-height:1.35;"><strong>Listen to the outlier</strong><br>The strongest pulse train in the sperm whale corpus was a power line. Every peak ranking needs an ear on its top entry.</p>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:14px; padding:14px 20px; border-color: var(--primary-color);">
+            <p style="margin:0; font-size:14pt;"><strong>And the scientific verdict, stated plainly:</strong> this classical pipeline &mdash; envelope, DEMON, matched filter, CV and on-pulse &mdash; reads a click rate on <strong>0.3&ndash;2%</strong> of clips, cannot separate the species it does read, and responds mainly to which recording it was handed. It is the right tool to <em>understand</em> the signal, and the wrong one to classify 54 species from a 70-year archive at 16&nbsp;kHz. <span style="color:var(--muted-color);">Which is the argument for everything in Parts 4&ndash;6: features learned from the data, judged by macro-F1, stress-tested under noise.</span></p>
+          </div>
+        </div>
+      </section>
+
       <section id="slide-21">
         <h2>The Theory, End to End</h2>
         <div class="content">
